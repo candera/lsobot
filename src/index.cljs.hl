@@ -1,0 +1,178 @@
+(page "index.html"
+  (:require [goog.dom :as gdom]
+            [goog.string :as gstring]
+            [goog.string.format]
+            [goog.style :as gstyle]
+            [cljs.core.async :as async
+             :refer [<! >! timeout]]
+            [lsobot.acmi :as acmi]
+            [lsobot.grading :as grading]
+            [hoplon.svg :as svg]
+            [taoensso.timbre :as log
+             :refer-macros (log trace debug info warn error fatal report
+                                logf tracef debugf infof warnf errorf fatalf reportf
+                                spy get-env log-env)])
+  (:require-macros
+   [cljs.core.async.macros :refer [go go-loop]]
+   [lsobot.macros :refer [formula-of defformula]]))
+
+(defc acmi nil)
+
+(defc loading? false)
+
+(defc selected-pass-index nil)
+
+(defn get-passes
+  [acmi]
+  (->>  (for [[carrier-id pilot-passes] (grading/passes acmi)
+              [pilot-id times] pilot-passes
+              [start end] times]
+          {:carrier-id carrier-id
+           :pilot-id pilot-id
+           :start start
+           :end end})
+        (map-indexed (fn [index m]
+                       (assoc m :index index)))))
+
+(defformula passes
+  [acmi]
+  (get-passes acmi))
+
+(defformula final-entities
+  [acmi]
+  (-> acmi
+      ::acmi/frames
+      last
+      second
+      ::acmi/entities))
+
+(defformula reference-time
+  [final-entities]
+  (get-in final-entities ["0" "ReferenceTime"]))
+
+(defformula selected-pass
+  [selected-pass-index passes acmi]
+  (when selected-pass-index
+    (let [{:keys [carrier-id pilot-id start end]} (nth passes selected-pass-index)
+          start-frame (acmi/frame-index-at acmi start)
+          end-frame (acmi/frame-index-at acmi end)]
+      {:carrier-id carrier-id
+       :pilot-id   pilot-id
+       :start      start
+       :end        end
+       :frames     (subvec (::acmi/frames acmi)
+                           start-frame
+                           end-frame)})))
+
+(defn load-acmi
+  [_]
+  (let [i (gdom/createElement "input")
+        ch (async/chan)]
+    (-> i .-type (set! "file"))
+    (-> (gdom/getDocument) .-body (gdom/appendChild i))
+    (gstyle/showElement i false)
+    (-> i .-onchange (set! (fn [e]
+                             (async/put! ch e)
+                             (async/close! ch))))
+    (.click i)
+    (go
+      (let [e (<! ch)]
+        (when-let [file (aget (.. e -target -files) 0)]
+          (let [reader (js/FileReader.)]
+            (-> reader
+                .-onload
+                (set! #(do
+                         (reset! loading? true)
+                         (go
+                           (<! (async/timeout 250))
+                           (let [contents (-> % .-target .-result)]
+                             (reset! acmi (acmi/read-acmi contents))
+                             (reset! selected-pass-index
+                                     (if (= 1 (log/spy (count @passes)))
+                                       0
+                                       nil))
+                             (reset! loading? false))))))
+            (.readAsText reader file)))))))
+
+(defn time-str
+  [ref-time t]
+  ;; For now we're just going to assume the reference time is midnight
+  (let [s (mod t 60)
+        t (long (/ t 60))
+        m (mod t 60)
+        h (long (/ t 60))]
+    (gstring/format "%02d:%02d:%02d" h m s)))
+
+(defn property
+  [id prop]
+  (get-in @final-entities [id prop]))
+
+(defn elevation
+  "Draws the side view of the pass."
+  []
+  (svg/svg
+   :id "elevation"
+   (cell-let [{:keys [carrier-id pilot-id frames]} selected-pass]
+     (for-tpl [[t entities] frames]
+       (svg/text (cell= (str t)))))))
+
+(defn plan
+  "Draws the top view of the pass."
+  []
+  (svg/svg :id "plan"))
+
+(html
+ (head
+  (title "LSOBot")
+  (link :href "style.css" :rel "stylesheet" :title "main" :type "text/css")
+  (link :href "https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300"
+        :rel "stylesheet"
+        :type "text/css"))
+ (body
+  (div :id "titlebar"
+       (div :id "words"
+            (span :id "title"
+                  "LSOBot")
+            (span :id "byline"
+                  "by"
+                  (a :href "http://firstfighterwing.com/VFW/member.php?893-Tyrant"
+                     :target "_blank"
+                     "Tyrant"))
+            (span :id "helpstring"
+                  "Help? Bug? Feature request? Click"
+                  (a :href "help.html"
+                     :target "_blank"
+                     "here")
+                  "."))
+       (a :href "http://firstfighterwing.com"
+          :target "_blank"
+          (img :id "winglogo"
+               :src "images/1stVFW_Insignia-64.png")))
+  (button :click load-acmi "Load ACMI")
+  (if-tpl loading?
+    (img :id "spinner" :src "images/spinner.gif")
+    (let [mt? (cell= (empty? passes))]
+      (div
+       (if-tpl mt?
+         (div "No passes detected")
+         [(table
+           :id "passes"
+           (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
+           (tbody
+            (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
+              (do
+                (log/debug :index index
+                           :carrier-id carrier-id
+                           :pilot-id pilot-id)
+                (tr
+                 (td (input :type "radio"
+                            :name "pass"
+                            :click #(reset! selected-pass-index @index)
+                            :checked (formula-of
+                                      [selected-pass-index]
+                                      (= selected-pass-index index))))
+                 (td (cell= (property carrier-id "Name")))
+                 (td (cell= (property pilot-id ::acmi/pilot)))
+                 (td (cell= (time-str reference-time start))))))))
+          (elevation)
+          (plan)]))))))
