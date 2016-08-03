@@ -384,6 +384,11 @@
   [frame]
   (-> frame second ::entities))
 
+(defn entity
+  "Returns an entity from a frame"
+  [frame id]
+  (get (entities frame) id))
+
 (defn entity-at
   "Return entity `id` from closest frame at or after specified time."
   [file id t]

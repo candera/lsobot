@@ -7,6 +7,7 @@
              :refer [<! >! timeout]]
             [lsobot.acmi :as acmi]
             [lsobot.grading :as grading]
+            [lsobot.units :as units]
             [hoplon.svg :as svg]
             [taoensso.timbre :as log
              :refer-macros (log trace debug info warn error fatal report
@@ -25,12 +26,11 @@
 (defn get-passes
   [acmi]
   (->>  (for [[carrier-id pilot-passes] (grading/passes acmi)
-              [pilot-id times] pilot-passes
-              [start end] times]
-          {:carrier-id carrier-id
-           :pilot-id pilot-id
-           :start start
-           :end end})
+              [pilot-id passes] pilot-passes
+              pass-frames passes]
+          {:frames     pass-frames
+           :carrier-id carrier-id
+           :pilot-id   pilot-id})
         (map-indexed (fn [index m]
                        (assoc m :index index)))))
 
@@ -53,16 +53,7 @@
 (defformula selected-pass
   [selected-pass-index passes acmi]
   (when selected-pass-index
-    (let [{:keys [carrier-id pilot-id start end]} (nth passes selected-pass-index)
-          start-frame (acmi/frame-index-at acmi start)
-          end-frame (acmi/frame-index-at acmi end)]
-      {:carrier-id carrier-id
-       :pilot-id   pilot-id
-       :start      start
-       :end        end
-       :frames     (subvec (::acmi/frames acmi)
-                           start-frame
-                           end-frame)})))
+    (nth passes selected-pass-index)))
 
 (defn load-acmi
   [_]
@@ -107,19 +98,214 @@
   [id prop]
   (get-in @final-entities [id prop]))
 
+
+(def view-bounds
+  {:west -1500
+   :east (units/nm->ft 2)
+   :north (units/nm->ft -0.5)
+   :south (units/nm->ft 0.5)
+   :high (units/nm->ft 1)
+   :low -500})
+
+(def carrier-elevation
+  "SVG data for the elevation view of the carrier"
+  (svg/g
+   ;; TODO: Change this so that the zero point matches the location of
+   ;; the carrier in BMS.
+   :transform "scale(-1 1) translate(750 0)"
+   (svg/defs
+     (svg/path
+      :id "carrier-outline-elevation"
+      ;; The class attribute doesn't work correctly on SVG
+      ;; elements, but we can use :attr to pull it off.
+      :attr {:class "carrier-side"}
+      :d "M-50 0
+L0 60
+L-1100 60
+L-1100 0"))
+   (svg/use
+    :href "#carrier-outline-elevation")
+   (svg/rect
+    :attr {:class "carrier-side"}
+    :x -850
+    :y 60
+    :width 150
+    :height 90)
+   (svg/rect
+    :attr {:class "carrier-side"}
+    :x -800
+    :y 150
+    :width 50
+    :height 60)
+   (svg/rect
+    :attr {:class "carrier-side"}
+    :x -850
+    :y 150
+    :width 25
+    :height 40)))
+
+(defn elevation-path
+  [pass]
+  (let [commands (cons "M" (repeat "L"))
+        {:keys [frames pilot-id]} pass]
+    (->> (map (fn [[t data] command]
+                (log/debug "elevation-path" :data (map? data))
+                (let [{:keys [::grading/slope
+                              ::grading/distance
+                              ::acmi/entities]} data
+                      pilot (get entities pilot-id)
+                      alt (-> pilot ::acmi/alt units/m->ft)]
+                  (str command (log/spy distance) " " (log/spy alt) "\n")))
+              frames
+              commands)
+         (interpose " ")
+         (reduce str))))
+
 (defn elevation
   "Draws the side view of the pass."
   []
-  (svg/svg
-   :id "elevation"
-   (cell-let [{:keys [carrier-id pilot-id frames]} selected-pass]
-     (for-tpl [[t entities] frames]
-       (svg/text (cell= (str t)))))))
+  (let [{:keys [west east high low]} view-bounds]
+    (svg/svg
+     :viewBox (gstring/format "%d %d %d %d"
+                              west
+                              high
+                              (- east west)
+                              (- high low))
+     :id "elevation"
+     (svg/g
+      :transform (gstring/format "scale(1 -1) translate(0 -%f)"
+                                 (* 2 high))
+      (svg/rect
+       :attr {:class "sky"}
+       :x west
+       :y 0
+       :width (- east west)
+       :height high)
+      (carrier-elevation)
+      (svg/circle
+       :attr {:class "zero-dot"}
+       :cx 0
+       :cy 0
+       :r 20)
+      (formula-of
+       [selected-pass]
+       (when selected-pass
+         (svg/path
+          :attr {:class "approach-path"}
+          :d (elevation-path selected-pass))))))))
+
+(defn coords
+  "Returns the coordinates of entity in feet"
+  [entity]
+  (->> entity ((juxt ::acmi/u ::acmi/v)) (mapv units/m->ft)))
+
+(defn plan-path
+  [id frames]
+  (log/debug :id id :frames (count frames))
+  (let [e              (fn [f] (-> f acmi/entities (get id)))
+        commands       (cons "M" (repeat "L"))]
+    (->> (map (fn [frame command]
+                (let [[x y] (-> frame (acmi/entity id) coords)]
+                  (str command x " " y "\n")))
+              frames
+              commands)
+         (interpose " ")
+         (reduce str))))
+
+(defmethod do! :viewBox
+    [elem _ value]
+    (if (= false value)
+        (.removeAttribute elem "viewBox")
+        (.setAttribute elem "viewBox" value)))
+
+(def carrier-plan
+  "SVG data for the plan view of the carrier"
+  (svg/g
+   ;; TODO: Change this so that the zero point matches the location of
+   ;; the carrier in BMS.
+   :transform "translate(-140 -750)"
+   (svg/defs
+     (svg/path
+      :id "carrier-outline"
+      ;; The class attribute doesn't work correctly on SVG
+      ;; elements, but we can use :attr to pull it off.
+      :attr {:class "carrier-top"}
+      :d "M80 1100
+L250 1100
+L280 920
+L280 350
+L200 200
+L180 0
+L100 0
+L80 200
+L0 350
+L0 920
+L30 1100")
+     (svg/clipPath
+      :id "carrier-outline-clip"
+      (svg/use :href "#carrier-outline")))
+   (svg/use
+    :href "#carrier-outline")
+   (svg/g
+    :clip-path "url(#carrier-outline-clip)"
+    (svg/g
+     :transform "rotate(-7 180 1100)"
+     (svg/line
+      :attr {:class "carrier-top-markings end"}
+      :x1 "180"
+      :y1 "1090"
+      :x2 "100"
+      :y2 "1090")
+     (svg/line
+      :attr {:class "carrier-top-markings"}
+      :x1 "180"
+      :y1 "1100"
+      :x2 "180"
+      :y2 "0")
+     (svg/line
+      :attr {:class "carrier-top-markings"}
+      :x1 "100"
+      :y1 "1100"
+      :x2 "100"
+      :y2 "0")
+     (svg/line
+      :attr {:class "carrier-top-markings middle"}
+      :x1 "140"
+      :y1 "1100"
+      :x2 "140"
+      :y2 "0")))))
 
 (defn plan
   "Draws the top view of the pass."
   []
-  (svg/svg :id "plan"))
+  (svg/svg
+   :id "plan"
+   :viewBox (let [{:keys [west east north south]} view-bounds]
+              (gstring/format "%d %d %d %d"
+                              west
+                              north
+                              (- east west)
+                              (- south north)))
+   (formula-of [selected-pass]
+               (let [{:keys [carrier-id frames]} selected-pass
+                     carrier (-> frames
+                                 last
+                                 (acmi/entity carrier-id))
+                     [x y] (coords carrier)]
+                 (svg/g
+                  :transform (gstring/format "translate(%f,%f) rotate(-83)" x y)
+                  (carrier-plan)
+                  (svg/circle
+                   :attr {:class "zero-dot"}
+                   :cx x
+                   :cy y
+                   :r 20))))
+   (formula-of [selected-pass]
+               (when-let [{:keys [carrier-id pilot-id frames]} selected-pass]
+                 (let [[x y] (-> frames first (acmi/entity carrier-id) coords)]
+                   (svg/path :attr {:class "approach-path"}
+                             :d (cell= (plan-path pilot-id frames))))))
+   ))
 
 (html
  (head
@@ -173,6 +359,6 @@
                                       (= selected-pass-index index))))
                  (td (cell= (property carrier-id "Name")))
                  (td (cell= (property pilot-id ::acmi/pilot)))
-                 (td (cell= (time-str reference-time start))))))))
-          (elevation)
-          (plan)]))))))
+                 (td (cell= (time-str reference-time start))))))))])
+       (elevation)
+       (plan))))))

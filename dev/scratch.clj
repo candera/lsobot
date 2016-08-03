@@ -255,3 +255,31 @@
 ;;            :alt (::acmi/alt pilot)
 ;;            :on-approach? (grading/on-approach? carrier pilot)}))
 
+(def a25 (-> "/tmp/Multiple Pass ACMI and VHS/25 passes 4 AC.txt.acmi" slurp acmi/read-acmi))
+
+(def p25 (grading/passes a25))
+
+;; (-> a25 ::acmi/frames second first)
+
+(-> a25 (acmi/frame-at (+ 31690.29 (+ (* 30 60) 25))) acmi/entities)
+
+(def carrier-id "757b9fef00000004")
+(def pilot-id "757b9fef00000001") ; Flounder
+
+(let [[m s] [36 20]
+      frame (-> a25 (acmi/frame-at (+ 31690.29 (+ (* m 60) s))))
+      carrier-id "757b9fef00000004"
+      pilot-id "757b9fef00000001"
+      carrier (acmi/entity frame carrier-id)
+      pilot (acmi/entity frame pilot-id)]
+  {:slope (grading/slope carrier pilot)
+   :d (grading/distance carrier pilot)
+   :c (grading/approach-course-deviation carrier pilot)})
+
+
+(def fp8 (grading/find-passes a8 "3bbb115200000004" "3bbb115200000001"))
+
+(let [[pass & more-passes] fp8
+      [frame & more-frames] pass
+      [t data] frame]
+  (keys data))

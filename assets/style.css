@@ -89,3 +89,48 @@ tr:nth-child(even) {
 #spinner {
     display: block;
 }
+
+#elevation,#plan {
+    background: #010144;
+    display: block;
+    border: solid 1px black;
+    margin-top: 7px;
+    width: 100%;
+    max-width: 768px;
+}
+
+.carrier {
+    fill: red;
+}
+
+.approach-path {
+    fill: none;
+    stroke: black;
+    stroke-width: 30;
+}
+
+.carrier-top,.carrier-side {
+    fill: #5d5c5c;
+}
+
+.carrier-top-markings {
+    stroke: white;
+    stroke-width: 20;
+    opacity: 0.7;
+}
+
+.carrier-top-markings.middle {
+    stroke-width: 13;
+}
+
+.carrier-top-markings.end {
+    stroke-width: 50;
+}
+
+.sky {
+    fill: #8db8de;
+}
+
+.zero-dot {
+    fill: red;
+}

@@ -3,12 +3,14 @@
   (:require [lsobot.acmi :as acmi]
             [lsobot.units :as units]
             #?@(:clj [[clojure.spec :as s]
-                      [clojure.spec.gen :as sgen]]))
+                      [clojure.spec.gen :as sgen]])
+            [taoensso.timbre :as log
+             #?@(:cljs [:refer-macros
+                        (log trace debug info warn error fatal report
+                             logf tracef debugf infof warnf errorf fatalf
+                             reportf spy get-env log-env)])])
   #?(:cljs (:require-macros [lsobot.spec :as s]
                             [lsobot.spec-gen :as sgen])))
-
-(def log (constantly nil))
-(def log println)
 
 (def grades
   {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
@@ -41,7 +43,7 @@
    })
 
 (defn distance
-  "Returns the distance between two objects in feet."
+  "Returns the distance between two objects in feet, independent of altitude."
   [obj1 obj2]
   (let [u1 (some-> obj1 ::acmi/u units/m->ft)
         u2 (some-> obj2 ::acmi/u units/m->ft)
@@ -81,73 +83,94 @@
   (when-let [b (bearing pilot carrier)]
     (-> b
         (+ (:recovery-skew pass-parameters))
-        (+ 360)
-        (- (+ 360 (::acmi/yaw carrier))))))
-
-(defn on-approach?
-  "Given the properties of a carrier and a pilot, returns true if the
-  pilot is in the approach frustrum."
-  [carrier pilot]
-  (let [s (slope carrier pilot)
-        d (distance carrier pilot)
-        c (approach-course-deviation carrier pilot)]
-    (and s d c
-         (< s (:max-slope pass-parameters))
-         (< d (-> pass-parameters :max-dist units/nm->ft))
-         (< (Math/abs c) (:max-angle pass-parameters)))))
+        ;; The file doesn't seem to always record a yaw for the
+        ;; carrier. For now, we'll assume that means a heading of
+        ;; zero.
+        (- (or (::acmi/yaw carrier) 0))
+        (- 180)
+        (mod 360)
+        (- 180))))
 
 (defn find-passes
   [file carrier-id pilot-id]
   (loop [[frame & frames] (::acmi/frames file)
          start nil
          end nil
+         pass-frames []
          passes []]
     (if-not frame
-      (if start
-        (conj passes [start (-> file ::acmi/frames last first)])
-        passes)
-      (let [[t {:keys [::acmi/entities]}] frame
-            approaching? (on-approach? (get entities carrier-id) (get entities pilot-id))]
-        (cond
-          ;; Look for start of pass
-          (not start)
-          (do
-            (recur frames
-                   (when approaching?
-                     t)
-                   nil
-                   passes))
+      passes
+      (let [[t {:keys [::acmi/entities] :as frame-data}] frame]
+        (let [carrier      (get entities carrier-id)
+              pilot        (get entities pilot-id)
+              s            (slope carrier pilot)
+              d            (distance carrier pilot)
+              c            (approach-course-deviation carrier pilot)
+              approaching? (and s d c
+                                (< s (:max-slope pass-parameters))
+                                (< d (-> pass-parameters
+                                         :max-dist
+                                         units/nm->ft))
+                                (< (Math/abs c)
+                                   (:max-angle pass-parameters)))
+              pass-frame   [t (merge frame-data
+                                     {::slope            s
+                                      ::distance         d
+                                      ::course-deviation c})]]
+         (cond
+           ;; Look for start of pass
+           (not start)
+           (do
+             (recur frames
+                    (when approaching?
+                      (log/debug "I think I found a start" :t t)
+                      t)
+                    nil
+                    [pass-frame]
+                    passes))
 
-          ;; Still on approach
-          approaching?
-          (recur frames
-                 start
-                 end
-                 passes)
+           ;; Still on approach
+           approaching?
+           (recur frames
+                  start
+                  end
+                  (conj pass-frames pass-frame)
+                  passes)
 
-          (not approaching?)
-          ;; Have we been in the cone long enough?
-          (if (< (:min-time pass-parameters) (- t (or start 0)))
-            ;; Yes - record the pass
-            (recur frames
-                   nil
-                   nil
-                   ;; TODO: Move the end time forward a bit
-                   (conj passes [start t]))
-            ;; Nope - go back to looking
-            (recur frames
-                   nil
-                   nil
-                   passes)))))))
+           ;; Either we're not in the approach cone any more, or the
+           ;; file has ended
+           (or (not approaching?) (empty? frames))
+           ;; Have we been in the cone long enough?
+           (if (< (:min-time pass-parameters) (- t (or start 0)))
+             ;; Yes - record the pass
+             (recur frames
+                    nil
+                    nil
+                    []
+                    ;; TODO: Move the end time forward a bit
+                    (conj passes pass-frames))
+             ;; Nope - go back to looking
+             (recur frames
+                    nil
+                    nil
+                    []
+                    passes))))))))
+
+(def carrier-id acmi/id)
+(def pilot-id acmi/id)
+(s/def ::slope float?)
+(s/def ::distance float?)
+(s/def ::course-deviation float?)
+(def pass-data (s/keys :req [::slope ::distance ::course-deviation ::acmi/entities]))
+(def pass-frame (s/cat :time float? :data pass-data))
 
 (s/fdef passes
         :args acmi/file
-        :ret (s/map-of acmi/id (s/map-of acmi/id (s/cat :start float? :end float?))))
+        :ret (s/map-of carrier-id (s/map-of pilot-id (s/* pass-frame))))
 
 (defn passes
   "Returns a map from IDs of carriers to map of pilot ids to sequences
-  of passes. A pass is a pair of timestamps marking the start and end
-  frame times of the pass."
+  of passes."
   [file]
   (let [entities (-> file ::acmi/frames last acmi/entities)
         carriers (->> entities
