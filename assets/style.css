@@ -104,9 +104,7 @@ tr:nth-child(even) {
 }
 
 .approach-path {
-    fill: none;
-    stroke: black;
-    stroke-width: 30;
+    fill: white;
 }
 
 .carrier-top,.carrier-side {
@@ -133,4 +131,9 @@ tr:nth-child(even) {
 
 .zero-dot {
     fill: red;
+    /*display: none;*/
+}
+
+.landing-point-dot {
+    fill: yellow;
 }

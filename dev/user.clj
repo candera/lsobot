@@ -6,6 +6,7 @@
             [clojure.spec.test :as stest]
             [lsobot.acmi :as acmi]
             [lsobot.grading :as grading]
+            [lsobot.units :as units]
             [clojure.repl :refer :all]
             [clojure.pprint :refer [pprint]]))
 

@@ -12,6 +12,39 @@
   #?(:cljs (:require-macros [lsobot.spec :as s]
                             [lsobot.spec-gen :as sgen])))
 
+;; Landing coordinates:
+;; x indicates cross-track error. Negative left.
+;; y indicates downrange distance. Postive downrange (approaching the
+;; trap), negative uprange.
+;; z indicates height above the deck.
+;; It basically puts the touchdown point of the carrier at the origin,
+;; assuming that the carrier is aligned such that the recovery is
+;; straight north.
+
+;; Carrier coordinates:
+;; The bow of the ship is in the positive y direction
+;; The starboard is in the positive x direction
+;; Waterline is zero z.
+;; Heading is assumed to be zero.
+;; The origin is whatever part of the ship Falcon thinks it is.
+;; Distances in feet.
+
+(def default-parameters
+  {:min-time      10  ; Seconds
+   :max-slope     10  ; Degrees
+   :max-angle     10  ; Degrees
+   :min-dist      0.4 ; Pass has to start at least this far away (nm).
+                                        ; Prevents things like detecting a pass starting
+                                        ; on the deck.
+   :max-dist      1.5   ; Pass starts no farther away than this (nm).
+   :recovery-skew 7     ; Degrees the deck of the carrier differs from
+                                        ; the heading of the carrier
+   :coda          5      ; Seconds of data to keep after approach ends
+   :landing-point [-57 -313 74]  ; x,y,z position in carrier coordinates
+                           ; zero where landing
+                           ; should aim. Feet.
+   })
+
 (def grades
   {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
                         :score 5}
@@ -33,37 +66,6 @@
    ::foul-deck-waveoff {:description "A pass that was aborted due to the landing area being ‘fouled’. No points are assigned, and the pass is not counted toward the pilot’s landing grade average."}
    ::incomplete        {:description "Insufficient data to determine the status of the pass."}})
 
-(def pass-parameters
-  {:min-time      10 ; Seconds
-   :max-slope     10 ; Degrees
-   :max-angle     10 ; Degrees
-   :max-dist      1  ; Miles
-   :deck-height   70 ; Feet
-   :recovery-skew 10 ; Degrees
-   })
-
-(defn distance
-  "Returns the distance between two objects in feet, independent of altitude."
-  [obj1 obj2]
-  (let [u1 (some-> obj1 ::acmi/u units/m->ft)
-        u2 (some-> obj2 ::acmi/u units/m->ft)
-        v1 (some-> obj1 ::acmi/v units/m->ft)
-        v2 (some-> obj2 ::acmi/v units/m->ft)]
-    (when (and u1 u2 v1 v2)
-      (let [ud (- u2 u1)
-            vd (- v2 v1)]
-        (Math/sqrt (+ (* ud ud)
-                      (* vd vd)))))))
-
-(defn slope
-  "Returns the elevation from a carrier to a pilot, in degrees"
-  [carrier pilot]
-  (when-let [height (some-> pilot
-                            ::acmi/alt
-                            units/m->ft
-                            (- (:deck-height pass-parameters)))]
-    (units/rad->deg (Math/atan2 height
-                                (distance carrier pilot)))))
 
 (defn bearing
   "Returns the bearing between two objects in degrees."
@@ -77,22 +79,75 @@
             vd (- v2 v1)]
         (-> (Math/atan2 ud vd) units/rad->deg (mod 360))))))
 
-(defn approach-course-deviation
-  "How many degrees off the centerline approach the pilot is"
-  [carrier pilot]
-  (when-let [b (bearing pilot carrier)]
-    (-> b
-        (+ (:recovery-skew pass-parameters))
-        ;; The file doesn't seem to always record a yaw for the
-        ;; carrier. For now, we'll assume that means a heading of
-        ;; zero.
-        (- (or (::acmi/yaw carrier) 0))
-        (- 180)
-        (mod 360)
-        (- 180))))
+(defn rotate-z
+  "Rotate a point in 3D space around the z axis by deg."
+  [deg [x y z]]
+  (let [theta (units/deg->rad deg)]
+    [(- (* x (Math/cos theta))
+        (* y (Math/sin theta)))
+     (+ (* y (Math/cos theta))
+        (* x (Math/sin theta)))
+     z]))
+
+(defn characterize-frame
+  [carrier-id pilot-id params frame]
+  (let [[t {:keys [::acmi/entities] :as frame-data}] frame
+        carrier      (get entities carrier-id)
+        pilot        (get entities pilot-id)
+
+        ;; ACMI space
+        pilot-loc    [(::acmi/u pilot)
+                      (::acmi/v pilot)
+                      (::acmi/alt pilot)]]
+    (if-not (and (::acmi/u carrier) (::acmi/v carrier))
+      {:approaching? false}
+      (let [carrier-loc  [(::acmi/u carrier)
+                          (::acmi/v carrier)
+                          0]
+            ;; Assume a north heading if we can't find one
+            carrier-hdg  (or (::acmi/yaw carrier) 0)
+            landing-loc  (mapv +
+                               (rotate-z (- carrier-hdg)
+                                         (mapv units/ft->m (:landing-point params)))
+                               carrier-loc)
+            ;; Now into landing space
+            coords       (->> (mapv - pilot-loc landing-loc)
+                              (rotate-z (- carrier-hdg (:recovery-skew params)))
+                              (mapv units/m->ft)
+                              (mapv * [1 -1 1]))
+            [crosstrack-error downrange height]   coords
+            distance     (Math/sqrt (+ (* crosstrack-error crosstrack-error)
+                                       (* downrange downrange)))
+            s            (units/rad->deg (Math/atan2 height distance))
+            d            distance
+            c            (-> (units/rad->deg (Math/asin (/ crosstrack-error distance)))
+                             (+ (if (pos? downrange)
+                                  0
+                                  180)))
+            approaching? (and s d c
+                              (< s (:max-slope params))
+                              (< d (-> params
+                                       :max-dist
+                                       units/nm->ft))
+                              (< (Math/abs c)
+                                 (:max-angle params)))
+            pass-frame   [t (merge frame-data
+                                   {::downrange        downrange
+                                    ::crosstrack-error crosstrack-error
+                                    ::height           height
+                                    ::slope            s
+                                    ::distance         d
+                                    ::course-deviation c})]]
+        (into (sorted-map)
+              {:landing-loc landing-loc
+               :carrier-loc carrier-loc
+               :pilot-loc pilot-loc
+               :approaching? approaching?
+               :distance d
+               :pass-frame pass-frame})))))
 
 (defn find-passes
-  [file carrier-id pilot-id]
+  [file carrier-id pilot-id params]
   (loop [[frame & frames] (::acmi/frames file)
          start nil
          end nil
@@ -100,61 +155,57 @@
          passes []]
     (if-not frame
       passes
-      (let [[t {:keys [::acmi/entities] :as frame-data}] frame]
-        (let [carrier      (get entities carrier-id)
-              pilot        (get entities pilot-id)
-              s            (slope carrier pilot)
-              d            (distance carrier pilot)
-              c            (approach-course-deviation carrier pilot)
-              approaching? (and s d c
-                                (< s (:max-slope pass-parameters))
-                                (< d (-> pass-parameters
-                                         :max-dist
-                                         units/nm->ft))
-                                (< (Math/abs c)
-                                   (:max-angle pass-parameters)))
-              pass-frame   [t (merge frame-data
-                                     {::slope            s
-                                      ::distance         d
-                                      ::course-deviation c})]]
-         (cond
-           ;; Look for start of pass
-           (not start)
-           (do
-             (recur frames
-                    (when approaching?
-                      (log/debug "I think I found a start" :t t)
-                      t)
-                    nil
-                    [pass-frame]
-                    passes))
+      (let [[t] frame
+            {:keys [distance approaching? pass-frame]}
+            (characterize-frame carrier-id pilot-id params frame)]
+        (cond
+          ;; Look for start of pass
+          (not start)
+          (recur frames
+                 (when (and approaching?
+                            (< (-> params :min-dist units/nm->ft) distance))
+                   t)
+                 nil
+                 [pass-frame]
+                 passes)
 
-           ;; Still on approach
-           approaching?
-           (recur frames
-                  start
-                  end
-                  (conj pass-frames pass-frame)
-                  passes)
+          ;; Still on approach
+          approaching?
+          (recur frames
+                 start
+                 end
+                 (conj pass-frames pass-frame)
+                 passes)
 
-           ;; Either we're not in the approach cone any more, or the
-           ;; file has ended
-           (or (not approaching?) (empty? frames))
-           ;; Have we been in the cone long enough?
-           (if (< (:min-time pass-parameters) (- t (or start 0)))
-             ;; Yes - record the pass
-             (recur frames
-                    nil
-                    nil
-                    []
-                    ;; TODO: Move the end time forward a bit
-                    (conj passes pass-frames))
-             ;; Nope - go back to looking
-             (recur frames
-                    nil
-                    nil
-                    []
-                    passes))))))))
+          ;; Either we're not in the approach cone any more, or the
+          ;; file has ended
+          (or (not approaching?) (empty? frames))
+          ;; Have we been in the cone long enough?
+          (if (< (:min-time params) (- t (or start 0)))
+            ;; Yes - record the pass
+            (let [pass-frames* (conj pass-frames pass-frame)
+                  [coda remainder] (split-with
+                                    (fn [[t*]]
+                                      (< t* (+ t (:coda params))))
+                                    frames)
+                  coda-frames (->> coda
+                                   (map #(characterize-frame carrier-id
+                                                             pilot-id
+                                                             params
+                                                             %))
+                                   (map :pass-frame))]
+              (recur remainder
+                     nil
+                     nil
+                     []
+                     ;; TODO: Move the end time forward a bit
+                     (conj passes (into pass-frames* coda-frames))))
+            ;; Nope - go back to looking
+            (recur frames
+                   nil
+                   nil
+                   []
+                   passes)))))))
 
 (def carrier-id acmi/id)
 (def pilot-id acmi/id)
@@ -171,7 +222,7 @@
 (defn passes
   "Returns a map from IDs of carriers to map of pilot ids to sequences
   of passes."
-  [file]
+  [file params]
   (let [entities (-> file ::acmi/frames last acmi/entities)
         carriers (->> entities
                       (filter (fn [[id properties]]
@@ -186,9 +237,8 @@
     (reduce (fn [m [carrier-id pilot-id]]
               (assoc-in m
                         [carrier-id pilot-id]
-                        (find-passes file carrier-id pilot-id)))
+                        (find-passes file carrier-id pilot-id params)))
             {}
             (for [carrier-id carriers
                   pilot-id pilots]
               [carrier-id pilot-id]))))
-

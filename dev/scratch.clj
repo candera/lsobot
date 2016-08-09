@@ -277,9 +277,131 @@
    :c (grading/approach-course-deviation carrier pilot)})
 
 
-(def fp8 (grading/find-passes a8 "3bbb115200000004" "3bbb115200000001"))
+(def fp8 (grading/find-passes
+          a8
+          "3bbb115200000004"
+          "3bbb115200000001"
+          {:min-time      10                     ; Seconds
+           :max-slope     10                     ; Degrees
+           :max-angle     10                     ; Degrees
+           :max-dist      1                      ; Miles
+           :recovery-skew 10                     ; Degrees
+           :landing-point [0 -400 70]   ; x,y,z position relative to
+                                        ; carrier zero where landing
+                                        ; should aim
+           }))
+
+(def p8 (grading/passes a8
+                        {:min-time      10 ; Seconds
+                         :max-slope     10 ; Degrees
+                         :max-angle     10 ; Degrees
+                         :max-dist      1  ; Miles
+                         :recovery-skew 10 ; Degrees
+                         :landing-point [0 -400 70] ; x,y,z position relative to
+                                        ; carrier zero where landing
+                                        ; should aim
+                         }))
 
 (let [[pass & more-passes] fp8
-      [frame & more-frames] pass
+      [frame & more-frames :as frames] pass
       [t data] frame]
-  (keys data))
+  ;;(keys data)
+  (count frames)
+  )
+
+
+(for [[carrier-id x] (grading/passes a8
+                        {:min-time      10 ; Seconds
+                         :max-slope     10 ; Degrees
+                         :max-angle     10 ; Degrees
+                         :max-dist      1  ; Miles
+                         :min-dist 0.4
+                         :coda 10
+                         :recovery-skew 10 ; Degrees
+                         :landing-point [0 -400 70] ; x,y,z position relative to
+                                        ; carrier zero where landing
+                                        ; should aim
+                         })
+      [pilot-id y] x
+      pass-frames y]
+  {:carrier-id carrier-id
+   :pilot-id pilot-id
+   :frames (count pass-frames)
+   :last-t (-> pass-frames last first)
+                                        ;:last-distance (-> pass-frames last second ::grading/distance)
+   })
+
+(as-> a8 ?
+  (acmi/frame-at ? 30965)
+  (grading/characterize-frame
+   "3bbb115200000004"
+   "3bbb115200000001"
+   {:min-time      10                   ; Seconds
+    :max-slope     10                   ; Degrees
+    :max-angle     10                   ; Degrees
+    :max-dist      1                    ; Miles
+    :min-dist 0.4
+    :coda 10
+    :recovery-skew 10                   ; Degrees
+    :landing-point [0 -400 70]          ; x,y,z position relative to
+                                        ; carrier zero where landing
+                                        ; should aim
+    }
+   ?)
+  (dissoc ? :pass-frame)
+  (pprint ?))
+
+(def )
+
+(let [a5 (-> "/tmp/TAPE0005.txt.acmi" slurp acmi/read-acmi)
+      pilot-id "ce64830b00000001"
+      carrier-id "ce64830b0000000d"
+      frame (-> a5 :lsobot.acmi/frames last)
+      pilot (acmi/entity frame pilot-id)
+      carrier (acmi/entity frame carrier-id)
+      ploc (map units/m->ft
+                [(:lsobot.acmi/u pilot)
+                 (:lsobot.acmi/v pilot)
+                 (:lsobot.acmi/alt pilot)])
+      cloc (map units/m->ft
+                [(:lsobot.acmi/u carrier)
+                 (:lsobot.acmi/v carrier)
+                 0])]
+  #_(pprint { ;; :pilot pilot
+             ;; :carrier carrier
+             :ploc ploc
+             :cloc cloc
+             :lp (map - ploc cloc)})
+  (-> (grading/characterize-frame carrier-id
+                                  pilot-id
+                                  grading/default-parameters
+                                  frame)
+      pprint))
+
+(pprint
+ (grading/characterize-frame
+  "carrier"
+  "pilot"
+  {:min-time      10  ; Seconds
+   :max-slope     10  ; Degrees
+   :max-angle     10  ; Degrees
+   :min-dist      0.4 ; Pass has to start at least this far
+                      ; away (nm). Prevents things like detecting a
+                      ; pass starting on the deck.
+   :max-dist      1      ; Pass starts no farther away than this (nm).
+   :recovery-skew 0      ; Degrees to the left the deck of the carrier
+                         ; differs from the heading of the carrier
+   :coda          5      ; Seconds of data to keep after approach ends
+   :landing-point [0 0 0]      ; x,y,z position in carrier coordinates
+                               ; zero where landing should aim. Feet.
+   }
+  [0 {::acmi/entities
+      {"carrier" {::acmi/u 0
+                  ::acmi/v 0
+                  ::acmi/yaw 235}
+       "pilot" {::acmi/u (units/ft->m 0)
+                ::acmi/v (units/ft->m -5000)
+                ::acmi/alt (units/ft->m 100)}}}]))
+
+(def a8 (-> "TAPE0008.txt.acmi" slurp acmi/read-acmi))
+(def p8 (grading/passes a8 grading/default-parameters))

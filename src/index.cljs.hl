@@ -17,6 +17,9 @@
    [cljs.core.async.macros :refer [go go-loop]]
    [lsobot.macros :refer [formula-of defformula]]))
 
+(defc pass-parameters grading/default-parameters)
+
+
 (defc acmi nil)
 
 (defc loading? false)
@@ -24,19 +27,25 @@
 (defc selected-pass-index nil)
 
 (defn get-passes
-  [acmi]
-  (->>  (for [[carrier-id pilot-passes] (grading/passes acmi)
+  [acmi params]
+  (->>  (for [[carrier-id pilot-passes] (grading/passes acmi params)
               [pilot-id passes] pilot-passes
               pass-frames passes]
-          {:frames     pass-frames
-           :carrier-id carrier-id
-           :pilot-id   pilot-id})
+          (do
+           (log/debug "get-passes"
+                      :carrier-id carrier-id
+                      :pilot-id pilot-id
+                      :pass-frames (count pass-frames))
+           {:frames     pass-frames
+            :carrier-id carrier-id
+            :start      (-> pass-frames first first)
+            :pilot-id   pilot-id}))
         (map-indexed (fn [index m]
                        (assoc m :index index)))))
 
 (defformula passes
-  [acmi]
-  (get-passes acmi))
+  [acmi pass-parameters]
+  (get-passes acmi pass-parameters))
 
 (defformula final-entities
   [acmi]
@@ -102,33 +111,36 @@
 (def view-bounds
   {:west -1500
    :east (units/nm->ft 2)
-   :north (units/nm->ft -0.5)
-   :south (units/nm->ft 0.5)
-   :high (units/nm->ft 1)
+   :north (units/nm->ft -0.4)
+   :south (units/nm->ft 0.4)
+   :high (units/nm->ft 0.6)
    :low -500})
 
-(def carrier-elevation
+(defn carrier-elevation
   "SVG data for the elevation view of the carrier"
+  [deck-height]
   (svg/g
    ;; TODO: Change this so that the zero point matches the location of
-   ;; the carrier in BMS.
-   :transform "scale(-1 1) translate(750 0)"
+   ;; the landing point
+   :transform (gstring/format "scale(-1 1) translate(1070 -%f)" (double deck-height))
    (svg/defs
      (svg/path
       :id "carrier-outline-elevation"
       ;; The class attribute doesn't work correctly on SVG
       ;; elements, but we can use :attr to pull it off.
       :attr {:class "carrier-side"}
-      :d "M-50 0
-L0 60
-L-1100 60
-L-1100 0"))
+      :d (gstring/format "M-50 0
+L0 %f
+L-1100 %f
+L-1100 0"
+                 (double deck-height)
+                 (double deck-height))))
    (svg/use
     :href "#carrier-outline-elevation")
    (svg/rect
     :attr {:class "carrier-side"}
     :x -850
-    :y 60
+    :y deck-height
     :width 150
     :height 90)
    (svg/rect
@@ -136,7 +148,7 @@ L-1100 0"))
     :x -800
     :y 150
     :width 50
-    :height 60)
+    :height deck-height)
    (svg/rect
     :attr {:class "carrier-side"}
     :x -850
@@ -144,87 +156,13 @@ L-1100 0"))
     :width 25
     :height 40)))
 
-(defn elevation-path
-  [pass]
-  (let [commands (cons "M" (repeat "L"))
-        {:keys [frames pilot-id]} pass]
-    (->> (map (fn [[t data] command]
-                (log/debug "elevation-path" :data (map? data))
-                (let [{:keys [::grading/slope
-                              ::grading/distance
-                              ::acmi/entities]} data
-                      pilot (get entities pilot-id)
-                      alt (-> pilot ::acmi/alt units/m->ft)]
-                  (str command (log/spy distance) " " (log/spy alt) "\n")))
-              frames
-              commands)
-         (interpose " ")
-         (reduce str))))
-
-(defn elevation
-  "Draws the side view of the pass."
-  []
-  (let [{:keys [west east high low]} view-bounds]
-    (svg/svg
-     :viewBox (gstring/format "%d %d %d %d"
-                              west
-                              high
-                              (- east west)
-                              (- high low))
-     :id "elevation"
-     (svg/g
-      :transform (gstring/format "scale(1 -1) translate(0 -%f)"
-                                 (* 2 high))
-      (svg/rect
-       :attr {:class "sky"}
-       :x west
-       :y 0
-       :width (- east west)
-       :height high)
-      (carrier-elevation)
-      (svg/circle
-       :attr {:class "zero-dot"}
-       :cx 0
-       :cy 0
-       :r 20)
-      (formula-of
-       [selected-pass]
-       (when selected-pass
-         (svg/path
-          :attr {:class "approach-path"}
-          :d (elevation-path selected-pass))))))))
-
-(defn coords
-  "Returns the coordinates of entity in feet"
-  [entity]
-  (->> entity ((juxt ::acmi/u ::acmi/v)) (mapv units/m->ft)))
-
-(defn plan-path
-  [id frames]
-  (log/debug :id id :frames (count frames))
-  (let [e              (fn [f] (-> f acmi/entities (get id)))
-        commands       (cons "M" (repeat "L"))]
-    (->> (map (fn [frame command]
-                (let [[x y] (-> frame (acmi/entity id) coords)]
-                  (str command x " " y "\n")))
-              frames
-              commands)
-         (interpose " ")
-         (reduce str))))
-
-(defmethod do! :viewBox
-    [elem _ value]
-    (if (= false value)
-        (.removeAttribute elem "viewBox")
-        (.setAttribute elem "viewBox" value)))
-
 (def carrier-plan
   "SVG data for the plan view of the carrier"
   (svg/g
-   ;; TODO: Change this so that the zero point matches the location of
-   ;; the carrier in BMS.
-   :transform "translate(-140 -750)"
    (svg/defs
+     ;; The carrier outline, relative to an origin at the port aft (is
+     ;; this right?) corner, with X increasing to starboard, and Y
+     ;; increasing forward
      (svg/path
       :id "carrier-outline"
       ;; The class attribute doesn't work correctly on SVG
@@ -244,36 +182,98 @@ L30 1100")
      (svg/clipPath
       :id "carrier-outline-clip"
       (svg/use :href "#carrier-outline")))
-   (svg/use
-    :href "#carrier-outline")
+   ;; Establish a new coordinate system where the zero point is the
+   ;; same zero point the ACMI uses
    (svg/g
-    :clip-path "url(#carrier-outline-clip)"
+    :transform "rotate(-83) translate(-130 -1020)"
+    (svg/use
+     :href "#carrier-outline")
     (svg/g
-     :transform "rotate(-7 180 1100)"
-     (svg/line
-      :attr {:class "carrier-top-markings end"}
-      :x1 "180"
-      :y1 "1090"
-      :x2 "100"
-      :y2 "1090")
-     (svg/line
-      :attr {:class "carrier-top-markings"}
-      :x1 "180"
-      :y1 "1100"
-      :x2 "180"
-      :y2 "0")
-     (svg/line
-      :attr {:class "carrier-top-markings"}
-      :x1 "100"
-      :y1 "1100"
-      :x2 "100"
-      :y2 "0")
-     (svg/line
-      :attr {:class "carrier-top-markings middle"}
-      :x1 "140"
-      :y1 "1100"
-      :x2 "140"
-      :y2 "0")))))
+     :clip-path "url(#carrier-outline-clip)"
+     (svg/g
+      :transform "rotate(-7 180 1100)"
+      (svg/line
+       :attr {:class "carrier-top-markings end"}
+       :x1 "180"
+       :y1 "1090"
+       :x2 "100"
+       :y2 "1090")
+      (svg/line
+       :attr {:class "carrier-top-markings"}
+       :x1 "180"
+       :y1 "1100"
+       :x2 "180"
+       :y2 "0")
+      (svg/line
+       :attr {:class "carrier-top-markings"}
+       :x1 "100"
+       :y1 "1100"
+       :x2 "100"
+       :y2 "0")
+      (svg/line
+       :attr {:class "carrier-top-markings middle"}
+       :x1 "140"
+       :y1 "1100"
+       :x2 "140"
+       :y2 "0"))))))
+
+(defn elevation-path
+  [pass]
+  (let [{:keys [frames pilot-id]} pass]
+    (svg/g
+     :attr {:class "approach-path"}
+     (for [[t data] frames]
+       (let [{:keys [::grading/downrange
+                     ::grading/height]} data]
+         (svg/circle
+          :cx downrange
+          :cy (* 4 height)
+          :r 25))))))
+
+(defn plan-path
+  [pass]
+  (let [{:keys [frames]} pass]
+    (svg/g
+     :attr {:class "approach-path"}
+     (for [[t data] frames]
+       (let [{:keys [::grading/downrange
+                     ::grading/crosstrack-error]} data]
+         (svg/circle
+          :cx downrange
+          :cy crosstrack-error
+          :r 25))))))
+
+(defn elevation
+  "Draws the side view of the pass."
+  []
+  (formula-of
+   [pass-parameters selected-pass]
+   (let [{:keys [west east high low]} view-bounds
+         [x y z] (:landing-point pass-parameters)]
+     (svg/svg
+      :viewBox (gstring/format "%d %d %d %d"
+                               west
+                               (- high z)
+                               (- east west)
+                               (- high low))
+      :id "elevation"
+      (svg/g
+       :transform (gstring/format "scale(1 -1) translate(0 -%f)"
+                                  (* 2 high))
+       (svg/rect
+        :attr {:class "sky"}
+        :x west
+        :y (- z)
+        :width (- east west)
+        :height (+ (* 2 z) high))
+       (carrier-elevation z)
+       (svg/circle
+        :attr {:class "landing-point-dot"}
+        :cx 0
+        :cy 0
+        :r 20)
+       (when selected-pass
+         (elevation-path selected-pass)))))))
 
 (defn plan
   "Draws the top view of the pass."
@@ -286,26 +286,22 @@ L30 1100")
                               north
                               (- east west)
                               (- south north)))
-   (formula-of [selected-pass]
-               (let [{:keys [carrier-id frames]} selected-pass
-                     carrier (-> frames
-                                 last
-                                 (acmi/entity carrier-id))
-                     [x y] (coords carrier)]
-                 (svg/g
-                  :transform (gstring/format "translate(%f,%f) rotate(-83)" x y)
-                  (carrier-plan)
-                  (svg/circle
-                   :attr {:class "zero-dot"}
-                   :cx x
-                   :cy y
-                   :r 20))))
-   (formula-of [selected-pass]
-               (when-let [{:keys [carrier-id pilot-id frames]} selected-pass]
-                 (let [[x y] (-> frames first (acmi/entity carrier-id) coords)]
-                   (svg/path :attr {:class "approach-path"}
-                             :d (cell= (plan-path pilot-id frames))))))
-   ))
+   carrier-plan
+   (formula-of
+    [selected-pass]
+    (when selected-pass
+      (plan-path selected-pass)))
+   (svg/circle
+    :attr {:class "landing-point-dot"}
+    :cx 0
+    :cy 0
+    :r 20)))
+
+(defmethod do! :viewBox
+    [elem _ value]
+    (if (= false value)
+        (.removeAttribute elem "viewBox")
+        (.setAttribute elem "viewBox" value)))
 
 (html
  (head

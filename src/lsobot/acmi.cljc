@@ -46,8 +46,8 @@
 (s/def ::roll float?)
 (s/def ::pitch float?)
 (s/def ::yaw float?)
-(s/def ::u float?) ; Falcon X coordinate
-(s/def ::v float?) ; Falcon Y coordinate
+(s/def ::u float?) ; Falcon X coordinate - increases east
+(s/def ::v float?) ; Falcon Y coordinate - increases north
 (s/def ::heading float?)
 
 ;; Global properties
