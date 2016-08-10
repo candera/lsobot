@@ -11,3 +11,16 @@
             [clojure.pprint :refer [pprint]]))
 
 (def a8 (-> "TAPE0008.txt.acmi" slurp acmi/read-acmi))
+
+(defn carriers
+  [file]
+  (->> file
+       ::acmi/frames
+       last
+       acmi/entities
+       (filter (fn [[id properties]]
+                 (-> properties
+                     ::acmi/object-type
+                     (get "AircraftCarrier"))))
+       (map first)))
+

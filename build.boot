@@ -46,9 +46,17 @@
  '[adzerk.boot-reload       :refer [reload]]
  '[hoplon.boot-hoplon       :refer [hoplon prerender]]
  '[tailrecursion.boot-jetty :refer [serve]]
- 'complete.core ; For inf-clojure completion
- ;;'user
- )
+ 'complete.core                         ; For inf-clojure completion
+ '[user :refer :all]
+ '[clojure.tools.namespace.repl :refer [refresh]]
+ '[clojure.spec :as s]
+ '[clojure.spec.gen :as sgen]
+ '[clojure.spec.test :as stest]
+ '[lsobot.acmi :as acmi]
+ '[lsobot.grading :as grading]
+ '[lsobot.units :as units]
+ '[clojure.repl :refer :all]
+ '[clojure.pprint :refer [pprint]])
 
 (deftask dev
   "Build for local development."

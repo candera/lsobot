@@ -406,3 +406,21 @@
 
 (def a8 (-> "TAPE0008.txt.acmi" slurp acmi/read-acmi))
 (def p8 (grading/passes a8 grading/default-parameters))
+
+(let [path "/tmp/25 passes 4 AC.txt.acmi"
+      file (-> path slurp acmi/read-acmi)
+      carrier-id (first (user/carriers file))
+      _ (println carrier-id)]
+ (->> file
+      ::acmi/frames
+      (map #(acmi/entity % carrier-id))
+      (map (juxt ::acmi/yaw ::acmi/heading))
+      ;;count
+      ;;(drop 1000)
+      ;;(take 10)
+      ;;(map (fn [[a b]] (when (and a b) (- a b))))
+      ;;(remove nil?)
+      distinct
+      ;;count
+      ))
+

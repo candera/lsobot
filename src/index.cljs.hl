@@ -19,7 +19,6 @@
 
 (defc pass-parameters grading/default-parameters)
 
-
 (defc acmi nil)
 
 (defc loading? false)
@@ -156,7 +155,8 @@ L-1100 0"
     :width 25
     :height 40)))
 
-(def carrier-plan
+(defn carrier-plan
+  [recovery-skew]
   "SVG data for the plan view of the carrier"
   (svg/g
    (svg/defs
@@ -182,16 +182,16 @@ L30 1100")
      (svg/clipPath
       :id "carrier-outline-clip"
       (svg/use :href "#carrier-outline")))
-   ;; Establish a new coordinate system where the zero point is the
-   ;; same zero point the ACMI uses
    (svg/g
-    :transform "rotate(-83) translate(-130 -1020)"
+    :transform (gstring/format "rotate(%d) translate(-125 -1050)"
+                               (- recovery-skew 90))
     (svg/use
      :href "#carrier-outline")
     (svg/g
      :clip-path "url(#carrier-outline-clip)"
      (svg/g
-      :transform "rotate(-7 180 1100)"
+      :transform (gstring/format "rotate(%d 180 1100)"
+                                 (- recovery-skew))
       (svg/line
        :attr {:class "carrier-top-markings end"}
        :x1 "180"
@@ -286,16 +286,22 @@ L30 1100")
                               north
                               (- east west)
                               (- south north)))
-   carrier-plan
-   (formula-of
-    [selected-pass]
-    (when selected-pass
-      (plan-path selected-pass)))
-   (svg/circle
-    :attr {:class "landing-point-dot"}
-    :cx 0
-    :cy 0
-    :r 20)))
+   (formula-of [pass-parameters]
+               (carrier-plan (:recovery-skew pass-parameters)))
+   (svg/g
+    ;; We need to invert the y axis because of the way the coordinate
+    ;; systems interact: in landing space, crosstrack error increases
+    ;; to the right
+    :transform "scale(1 -1)"
+    (formula-of
+     [selected-pass]
+     (when selected-pass
+       (plan-path selected-pass)))
+    (svg/circle
+     :attr {:class "landing-point-dot"}
+     :cx 0
+     :cy 0
+     :r 20))))
 
 (defmethod do! :viewBox
     [elem _ value]
