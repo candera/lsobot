@@ -37,7 +37,7 @@
                                         ; Prevents things like detecting a pass starting
                                         ; on the deck.
    :max-dist      1.5   ; Pass starts no farther away than this (nm).
-   :recovery-skew 12.1  ; Degrees the deck of the carrier differs from
+   :recovery-skew 12.15  ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda          5      ; Seconds of data to keep after approach ends
    :landing-point [-25 -313 74] ; x,y,z position in carrier coordinates

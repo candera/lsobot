@@ -2,6 +2,7 @@ body {
     font-family: 'Open Sans Condensed', sans-serif;
     font-weight: 500;
     background-color: #FDFFD9;
+    padding-right: 8px;
 }
 
 #titlebar {
@@ -96,7 +97,7 @@ tr:nth-child(even) {
     border: solid 1px black;
     margin-top: 7px;
     width: 100%;
-    max-width: 768px;
+    max-width: 1024px;
 }
 
 .carrier {

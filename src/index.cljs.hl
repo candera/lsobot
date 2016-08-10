@@ -156,7 +156,7 @@ L-1100 0"
     :height 40)))
 
 (defn carrier-plan
-  [recovery-skew]
+  []
   "SVG data for the plan view of the carrier"
   (svg/g
    (svg/defs
@@ -183,15 +183,13 @@ L30 1100")
       :id "carrier-outline-clip"
       (svg/use :href "#carrier-outline")))
    (svg/g
-    :transform (gstring/format "rotate(%d) translate(-125 -1050)"
-                               (- recovery-skew 90))
+    :transform "rotate(-83) translate(-130 -1050)"
     (svg/use
      :href "#carrier-outline")
     (svg/g
      :clip-path "url(#carrier-outline-clip)"
      (svg/g
-      :transform (gstring/format "rotate(%d 180 1100)"
-                                 (- recovery-skew))
+      :transform (gstring/format "rotate(-7 180 1100)")
       (svg/line
        :attr {:class "carrier-top-markings end"}
        :x1 "180"
@@ -238,6 +236,7 @@ L30 1100")
      (for [[t data] frames]
        (let [{:keys [::grading/downrange
                      ::grading/crosstrack-error]} data]
+         ;; TODO: Exaggerate the angle to make errors more obvious
          (svg/circle
           :cx downrange
           :cy crosstrack-error
@@ -286,8 +285,7 @@ L30 1100")
                               north
                               (- east west)
                               (- south north)))
-   (formula-of [pass-parameters]
-               (carrier-plan (:recovery-skew pass-parameters)))
+   (carrier-plan)
    (svg/g
     ;; We need to invert the y axis because of the way the coordinate
     ;; systems interact: in landing space, crosstrack error increases
