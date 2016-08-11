@@ -37,10 +37,10 @@
                                         ; Prevents things like detecting a pass starting
                                         ; on the deck.
    :max-dist      1.5   ; Pass starts no farther away than this (nm).
-   :recovery-skew 12.15  ; Degrees the deck of the carrier differs from
+   :recovery-skew 11  ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda          5      ; Seconds of data to keep after approach ends
-   :landing-point [-25 -313 74] ; x,y,z position in carrier coordinates
+   :landing-point [-18 -313 74] ; x,y,z position in carrier coordinates
                                         ; zero where landing
                                         ; should aim. Feet.
    })
@@ -105,7 +105,7 @@
                           (::acmi/v carrier)
                           0]
             ;; Assume a north heading if we can't find one
-            carrier-hdg  (or (::acmi/yaw carrier) 0)
+            carrier-hdg  (or (::acmi/heading carrier) 0)
             landing-loc  (mapv +
                                (rotate-z (- carrier-hdg)
                                          (mapv units/ft->m (:landing-point params)))
