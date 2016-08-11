@@ -407,7 +407,7 @@
 (def a8 (-> "TAPE0008.txt.acmi" slurp acmi/read-acmi))
 (def p8 (grading/passes a8 grading/default-parameters))
 
-(let [path "/tmp/25 passes 4 AC.txt.acmi"
+(let [path "/tmp/LSOBot Test Passes 8-11-16.txt.acmi"
       file (-> path slurp acmi/read-acmi)
       carrier-id (first (user/carriers file))
       _ (println carrier-id)]

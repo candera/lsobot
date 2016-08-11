@@ -215,6 +215,8 @@ L30 1100")
        :x2 "140"
        :y2 "0"))))))
 
+(def elevation-exaggeration 4)
+
 (defn elevation-path
   [pass]
   (let [{:keys [frames pilot-id]} pass]
@@ -225,8 +227,23 @@ L30 1100")
                      ::grading/height]} data]
          (svg/circle
           :cx downrange
-          :cy (* 4 height)
+          :cy (* elevation-exaggeration height)
           :r 25))))))
+
+(def angular-exaggeration 5)
+
+(defn exaggerate-angle
+  "Map a cartesian coordinate into polar coordinates, multiplies theta by factor, and translates back into cartian coordinates"
+  [[x y] factor]
+  (let [r (Math/sqrt (* x x) (* y y))
+        ax (Math/abs x)
+        ay (Math/abs y)
+        theta (Math/atan2 ay ax)
+        x' (* r (Math/cos (* theta factor)))
+        y' (* r (Math/sin (* theta factor)))]
+    ;; Sign of coordinates should match original signs
+    [(* x' (/ x ax))
+     (* y' (/ y ay))]))
 
 (defn plan-path
   [pass]
@@ -235,11 +252,13 @@ L30 1100")
      :attr {:class "approach-path"}
      (for [[t data] frames]
        (let [{:keys [::grading/downrange
-                     ::grading/crosstrack-error]} data]
+                     ::grading/crosstrack-error]} data
+             [downrange* crosstrack*] (exaggerate-angle [downrange crosstrack-error]
+                                                        angular-exaggeration)]
          ;; TODO: Exaggerate the angle to make errors more obvious
          (svg/circle
-          :cx downrange
-          :cy crosstrack-error
+          :cx (if (pos? downrange) downrange* downrange)
+          :cy (if (pos? downrange) crosstrack* crosstrack-error)
           :r 25))))))
 
 (defn elevation
@@ -277,29 +296,55 @@ L30 1100")
 (defn plan
   "Draws the top view of the pass."
   []
-  (svg/svg
-   :id "plan"
-   :viewBox (let [{:keys [west east north south]} view-bounds]
-              (gstring/format "%d %d %d %d"
+  (let [{:keys [west east north south]} view-bounds]
+    (svg/svg
+     :id "plan"
+     :viewBox (gstring/format "%d %d %d %d"
                               west
                               north
                               (- east west)
-                              (- south north)))
-   (carrier-plan)
-   (svg/g
-    ;; We need to invert the y axis because of the way the coordinate
-    ;; systems interact: in landing space, crosstrack error increases
-    ;; to the right
-    :transform "scale(1 -1)"
-    (formula-of
-     [selected-pass]
-     (when selected-pass
-       (plan-path selected-pass)))
-    (svg/circle
-     :attr {:class "landing-point-dot"}
-     :cx 0
-     :cy 0
-     :r 20))))
+                              (- south north))
+     (carrier-plan)
+     (svg/line
+      :attr {:class "plan angle zero guideline"}
+      :x1 west
+      :y1 0
+      :x2 east
+      :y2 0)
+     (for [x (range 0 east 1000)]
+       [(svg/line
+          :attr {:class "plan range guideline"}
+          :x1 x
+          :y1 north
+          :x2 x
+          :y2 south)
+        (svg/text
+         :attr {:class "axis-label plan range"}
+         :x x
+         :y south
+         (str x))])
+     (for [x (range -3 4 1)]
+       (svg/line
+        :transform (gstring/format "rotate(%f)" (* x angular-exaggeration))
+        :attr {:class "plan angle guideline"}
+        :x1 0
+        :y1 0
+        :x2 (* east 2)
+        :y2 0))
+     (svg/g
+      ;; We need to invert the y axis because of the way the coordinate
+      ;; systems interact: in landing space, crosstrack error increases
+      ;; to the right
+      :transform "scale(1 -1)"
+      (formula-of
+       [selected-pass]
+       (when selected-pass
+         (plan-path selected-pass)))
+      (svg/circle
+       :attr {:class "landing-point-dot"}
+       :cx 0
+       :cy 0
+       :r 20)))))
 
 (defmethod do! :viewBox
     [elem _ value]
