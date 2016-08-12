@@ -109,7 +109,7 @@
 
 (def view-bounds
   {:west -1500
-   :east (units/nm->ft 2)
+   :east (units/nm->ft 1.5)
    :north (units/nm->ft -0.4)
    :south (units/nm->ft 0.4)
    :high (units/nm->ft 0.6)
@@ -121,21 +121,18 @@
   (svg/g
    ;; TODO: Change this so that the zero point matches the location of
    ;; the landing point
-   :transform (gstring/format "scale(-1 1) translate(1070 -%f)" (double deck-height))
-   (svg/defs
-     (svg/path
-      :id "carrier-outline-elevation"
-      ;; The class attribute doesn't work correctly on SVG
-      ;; elements, but we can use :attr to pull it off.
-      :attr {:class "carrier-side"}
-      :d (gstring/format "M-50 0
+   :transform (gstring/format "scale(-1 1) translate(970 -%f)" (double deck-height))
+   (svg/path
+    :id "carrier-outline-elevation"
+    ;; The class attribute doesn't work correctly on SVG
+    ;; elements, but we can use :attr to pull it off.
+    :attr {:class "carrier-side"}
+    :d (gstring/format "M-50 0
 L0 %f
 L-1100 %f
 L-1100 0"
-                 (double deck-height)
-                 (double deck-height))))
-   (svg/use
-    :href "#carrier-outline-elevation")
+                       (double deck-height)
+                       (double deck-height)))
    (svg/rect
     :attr {:class "carrier-side"}
     :x -850
@@ -158,17 +155,11 @@ L-1100 0"
 (defn carrier-plan
   []
   "SVG data for the plan view of the carrier"
-  (svg/g
-   (svg/defs
-     ;; The carrier outline, relative to an origin at the port aft (is
-     ;; this right?) corner, with X increasing to starboard, and Y
-     ;; increasing forward
-     (svg/path
-      :id "carrier-outline"
-      ;; The class attribute doesn't work correctly on SVG
-      ;; elements, but we can use :attr to pull it off.
-      :attr {:class "carrier-top"}
-      :d "M80 1100
+  (let [outline (svg/path
+                 ;; The class attribute doesn't work correctly on SVG
+                 ;; elements, but we can use :attr to pull it off.
+                 :attr {:class "carrier-top"}
+                 :d "M80 1100
 L250 1100
 L280 920
 L280 350
@@ -178,42 +169,56 @@ L100 0
 L80 200
 L0 350
 L0 920
-L30 1100")
-     (svg/clipPath
-      :id "carrier-outline-clip"
-      (svg/use :href "#carrier-outline")))
-   (svg/g
-    :transform "rotate(-83) translate(-130 -1050)"
-    (svg/use
-     :href "#carrier-outline")
-    (svg/g
-     :clip-path "url(#carrier-outline-clip)"
+L30 1100")]
+    [(svg/defs
+       ;; The carrier outline, relative to an origin at the port aft (is
+       ;; this right?) corner, with X increasing to starboard, and Y
+       ;; increasing forward
+       (svg/clipPath
+        :id "carrier-outline-clip"
+        (svg/path
+         :d "M80 1100
+L250 1100
+L280 920
+L280 350
+L200 200
+L180 0
+L100 0
+L80 200
+L0 350
+L0 920
+L30 1100")))
      (svg/g
-      :transform (gstring/format "rotate(-7 180 1100)")
-      (svg/line
-       :attr {:class "carrier-top-markings end"}
-       :x1 "180"
-       :y1 "1090"
-       :x2 "100"
-       :y2 "1090")
-      (svg/line
-       :attr {:class "carrier-top-markings"}
-       :x1 "180"
-       :y1 "1100"
-       :x2 "180"
-       :y2 "0")
-      (svg/line
-       :attr {:class "carrier-top-markings"}
-       :x1 "100"
-       :y1 "1100"
-       :x2 "100"
-       :y2 "0")
-      (svg/line
-       :attr {:class "carrier-top-markings middle"}
-       :x1 "140"
-       :y1 "1100"
-       :x2 "140"
-       :y2 "0"))))))
+      :transform "rotate(-83) translate(-130 -970)"
+      outline
+      (svg/g
+       :clip-path "url(#carrier-outline-clip)"
+       (svg/g
+        :transform (gstring/format "rotate(-7 180 1100)")
+        (svg/line
+         :attr {:class "carrier-top-markings end"}
+         :x1 "180"
+         :y1 "1090"
+         :x2 "100"
+         :y2 "1090")
+        (svg/line
+         :attr {:class "carrier-top-markings"}
+         :x1 "180"
+         :y1 "1100"
+         :x2 "180"
+         :y2 "0")
+        (svg/line
+         :attr {:class "carrier-top-markings"}
+         :x1 "100"
+         :y1 "1100"
+         :x2 "100"
+         :y2 "0")
+        (svg/line
+         :attr {:class "carrier-top-markings middle"}
+         :x1 "140"
+         :y1 "1100"
+         :x2 "140"
+         :y2 "0"))))]))
 
 (def elevation-exaggeration 4)
 
@@ -233,7 +238,10 @@ L30 1100")
 (def angular-exaggeration 5)
 
 (defn exaggerate-angle
-  "Map a cartesian coordinate into polar coordinates, multiplies theta by factor, and translates back into cartian coordinates"
+  "Map a cartesian coordinate into polar coordinates, multiplies theta
+  by factor, and translates back into cartian coordinates."
+  ;; TODO: This needs to not exaggerate angles larger than a certain
+  ;; amount - it winds up looking weird.
   [[x y] factor]
   (let [r (Math/sqrt (* x x) (* y y))
         ax (Math/abs x)
@@ -250,6 +258,7 @@ L30 1100")
   (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "approach-path"}
+
      (for [[t data] frames]
        (let [{:keys [::grading/downrange
                      ::grading/crosstrack-error]} data
@@ -269,6 +278,7 @@ L30 1100")
    (let [{:keys [west east high low]} view-bounds
          [x y z] (:landing-point pass-parameters)]
      (svg/svg
+      :attr {"xmlns" "http://www.w3.org/2000/svg"}
       :viewBox (gstring/format "%d %d %d %d"
                                west
                                (- high z)
@@ -276,8 +286,8 @@ L30 1100")
                                (- high low))
       :id "elevation"
       (svg/g
-       :transform (gstring/format "scale(1 -1) translate(0 -%f)"
-                                  (* 2 high))
+       :transform (gstring/format "scale(1 -1) translate(0 %f)"
+                                  (* -2 high))
        (svg/rect
         :attr {:class "sky"}
         :x west
@@ -285,19 +295,50 @@ L30 1100")
         :width (- east west)
         :height (+ (* 2 z) high))
        (carrier-elevation z)
+       (for [x (range 0 east 1000)]
+         [(svg/line
+           :attr {:class "plan range guideline"}
+           :x1 x
+           :y1 low
+           :x2 x
+           :y2 high)
+          (svg/text
+           :transform "scale(1 -1)"
+           :attr {:class "axis-label plan range"}
+           :x x
+           :y (- (+ low z))
+           (str x))])
+       (for [angle (range 2.5 5 0.5)]
+         [(svg/line
+           :transform (gstring/format "rotate(%f)" (* angle elevation-exaggeration))
+           :attr {:class "elevation glideslope guideline"}
+           :x1 0
+           :y1 0
+           :x2 (* 2 east)
+           :y2 0)
+          (svg/text
+           :transform (gstring/format "rotate(%f) scale(1 -1)" (* angle elevation-exaggeration))
+           :attr {:class "axis-label elevation glideslope"}
+           :x 8500
+           :y -20
+           (str angle "°"))])
+       ;; A nil stops rendering. But an empty collection does not
+       (if selected-pass
+         (elevation-path selected-pass)
+         [])
        (svg/circle
         :attr {:class "landing-point-dot"}
         :cx 0
         :cy 0
         :r 20)
-       (when selected-pass
-         (elevation-path selected-pass)))))))
+       )))))
 
 (defn plan
   "Draws the top view of the pass."
   []
   (let [{:keys [west east north south]} view-bounds]
     (svg/svg
+     :attr {"xmlns" "http://www.w3.org/2000/svg"}
      :id "plan"
      :viewBox (gstring/format "%d %d %d %d"
                               west
@@ -313,24 +354,30 @@ L30 1100")
       :y2 0)
      (for [x (range 0 east 1000)]
        [(svg/line
-          :attr {:class "plan range guideline"}
-          :x1 x
-          :y1 north
-          :x2 x
-          :y2 south)
+         :attr {:class "plan range guideline"}
+         :x1 x
+         :y1 north
+         :x2 x
+         :y2 south)
         (svg/text
          :attr {:class "axis-label plan range"}
          :x x
          :y south
          (str x))])
      (for [x (range -3 4 1)]
-       (svg/line
-        :transform (gstring/format "rotate(%f)" (* x angular-exaggeration))
-        :attr {:class "plan angle guideline"}
-        :x1 0
-        :y1 0
-        :x2 (* east 2)
-        :y2 0))
+       [(svg/line
+         :transform (gstring/format "rotate(%f)" (* x angular-exaggeration))
+         :attr {:class "plan angle guideline"}
+         :x1 0
+         :y1 0
+         :x2 (* east 2)
+         :y2 0)
+        (svg/text
+         :transform (gstring/format "rotate(%f)" (* (- x) angular-exaggeration))
+         :attr {:class "axis-label plan angle"}
+         :x 8500
+         :y -20
+         (str x "°"))])
      (svg/g
       ;; We need to invert the y axis because of the way the coordinate
       ;; systems interact: in landing space, crosstrack error increases
