@@ -55,12 +55,11 @@
 
 (defformula selected-pass
   [selected-pass-descriptor passes]
-  (log/debug "selected-pass" selected-pass-descriptor)
+  (log/debug "selected-pass"
+             :selected-pass-descriptor selected-pass-descriptor)
   (let [{:keys [index]} selected-pass-descriptor]
     (when index
-      (nth passes (long index))))
-  ;;(log/debug "seleceted-pass: exiting")
-  )
+      (nth passes (long index)))))
 
 (defn change-pass
   [index]
@@ -122,8 +121,7 @@
                 (set! #(do
                          (reset! loading? true)
                          (go
-                           ;; Give the loading spinner a chance to
-                           ;; start, not that it does much good.
+                           ;; Give the loading changes to take
                            (<! (async/timeout 100))
                            (let [contents (-> % .-target .-result)]
                              (reset! acmi (acmi/read-acmi contents))
@@ -530,6 +528,10 @@ L30 1100")))
   [(label :for "pass-select" "Pass starting at:")
    (formula-of
     [acmi passes selected-pass-descriptor]
+    (log/debug "pass-select-ui"
+               :selected-pass-descriptor selected-pass-descriptor
+               ;;:passes passes
+               )
     (select
      :id "pass-select"
      :change #(change-pass (js/Number. @%))
@@ -538,17 +540,15 @@ L30 1100")))
                         (filter #(= carrier-id (:carrier-id %)))
                         (filter #(= pilot-id (:pilot-id %)))
                         (sort-by :index))]
-       (into (if index
+       (into (if (and index pilot-id)
                []
-               (if-not pilot-id
-                 []
-                 [(option
-                   :selected true
-                   :value ""
-                   "Select a pass")]))
+               [(option
+                 :selected true
+                 :value ""
+                 "Select a pass")])
              (for [pass passes*]
                (option
-                :selected (= (:index pass) index)
+                :selected (and index (= (long (:index pass)) (long index)))
                 :value (-> pass :index str)
                 (time-str acmi (:start pass))))))))])
 
@@ -608,40 +608,42 @@ L30 1100")))
           :target "_blank"
           (img :id "winglogo"
                :src "images/1stVFW_Insignia-64.png")))
-  (button :click load-acmi "Load ACMI")
+  (if-tpl loading?
+    [(div
+      :id "loading-placeholder"
+      (span
+       :id "loading-placeholder-message"
+       "Loading...")
+      (img :id "spinner" :src "images/spinner.gif"))]
+    (button :click load-acmi "Load ACMI"))
   (formula-of
-   [acmi loading? passes]
+   [acmi passes]
    (cond
      (not acmi) (div "No ACMI file loaded")
-     loading? (img :id "spinner" :src "images/spinner.gif")
      (empty? passes) (div "No passes detected in loaded ACMI")
      :else pass-selection-ui))
   (elevation)
-  (plan)
-  #_(if-tpl loading?
-      (img :id "spinner" :src "images/spinner.gif")
-      (let [mt? (cell= (empty? passes))]
-        (div
-         (if-tpl mt?
-           (div "No passes detected")
-           [(table
-             :id "passes"
-             (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
-             (tbody
-              (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
-                (do
-                  (log/debug :index index
-                             :carrier-id carrier-id
-                             :pilot-id pilot-id)
-                  (tr
-                   (td (input :type "radio"
-                              :name "pass"
-                              :click #(reset! selected-pass-index @index)
-                              :checked (formula-of
-                                        [selected-pass-index]
-                                        (= selected-pass-index index))))
-                   (td (cell= (property carrier-id "Name")))
-                   (td (cell= (property pilot-id ::acmi/pilot)))
-                   (td (cell= (time-str reference-time start))))))))])
-         (elevation)
-         (plan))))))
+  (plan)))
+
+(comment
+  ;; This draw the table of passes. Might use it again
+  (table
+   :id "passes"
+   (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
+   (tbody
+    (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
+      (do
+        (log/debug :index index
+                   :carrier-id carrier-id
+                   :pilot-id pilot-id)
+        (tr
+         (td (input :type "radio"
+                    :name "pass"
+                    :click #(reset! selected-pass-index @index)
+                    :checked (formula-of
+                              [selected-pass-index]
+                              (= selected-pass-index index))))
+         (td (cell= (property carrier-id "Name")))
+         (td (cell= (property pilot-id ::acmi/pilot)))
+         (td (cell= (time-str reference-time start))))))))
+  )

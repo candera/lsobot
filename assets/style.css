@@ -87,8 +87,11 @@ tr:nth-child(even) {
     background: #F2F0E0;
 }
 
+#loading-placeholder {
+}
+
 #spinner {
-    display: block;
+    height: 20px;
 }
 
 #elevation,#plan {
