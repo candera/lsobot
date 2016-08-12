@@ -154,4 +154,15 @@ tr:nth-child(even) {
     font-size: 150px;
 }
 
+#pass-selection-section label {
+    margin-right: 3px;
+}
 
+#pass-selection-section select {
+    margin-right: 10px;
+}
+
+.three-quarter-mile {
+    opacity: 1.0;
+    stroke: yellow;
+}

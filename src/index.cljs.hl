@@ -23,22 +23,21 @@
 
 (defc loading? false)
 
-(defc selected-pass-index nil)
+;; Looks like:
+#_{:carrier-id "id-or-nil"
+   :pilot-id "id-or-nil"
+   :index "index-or-nil"}
+(defc selected-pass-descriptor nil)
 
 (defn get-passes
   [acmi params]
   (->>  (for [[carrier-id pilot-passes] (grading/passes acmi params)
               [pilot-id passes] pilot-passes
               pass-frames passes]
-          (do
-           (log/debug "get-passes"
-                      :carrier-id carrier-id
-                      :pilot-id pilot-id
-                      :pass-frames (count pass-frames))
-           {:frames     pass-frames
-            :carrier-id carrier-id
-            :start      (-> pass-frames first first)
-            :pilot-id   pilot-id}))
+          {:frames     pass-frames
+           :carrier-id carrier-id
+           :start      (-> pass-frames first first)
+           :pilot-id   pilot-id})
         (map-indexed (fn [index m]
                        (assoc m :index index)))))
 
@@ -54,14 +53,54 @@
       second
       ::acmi/entities))
 
-(defformula reference-time
-  [final-entities]
-  (get-in final-entities ["0" "ReferenceTime"]))
-
 (defformula selected-pass
-  [selected-pass-index passes acmi]
-  (when selected-pass-index
-    (nth passes selected-pass-index)))
+  [selected-pass-descriptor passes]
+  (log/debug "selected-pass" selected-pass-descriptor)
+  (let [{:keys [index]} selected-pass-descriptor]
+    (when index
+      (nth passes (long index))))
+  ;;(log/debug "seleceted-pass: exiting")
+  )
+
+(defn change-pass
+  [index]
+  (log/debug "change-pass"
+             :index index
+             :index-type (type index))
+  (swap! selected-pass-descriptor
+         assoc
+         :index
+         index))
+
+(defn change-pilot
+  [pilot-id]
+  (log/debug "change-pilot" :pilot-id pilot-id)
+  (let [indexes (->> @passes
+                     (filter #(= (:carrier-id @selected-pass-descriptor)
+                                 (:carrier-id %)))
+                     (filter #(= pilot-id (:pilot-id %)))
+                     (map :index))]
+    (swap! selected-pass-descriptor
+           assoc
+           :pilot-id
+           pilot-id
+           :index
+           nil)
+    (log/debug "change-pilot" :indexes indexes)
+    (when (= 1 (count indexes))
+      (change-pass (first indexes)))))
+
+(defn change-carrier
+  [carrier-id]
+  (log/debug "change-carrier" :carrier-id carrier-id)
+  (let [pilot-ids (->> @passes
+                       (filter #(= carrier-id (:carrier-id %)))
+                       (map :pilot-id)
+                       distinct)]
+    (reset! selected-pass-descriptor
+            {:carrier-id carrier-id})
+    (when (= 1 (count pilot-ids))
+      (change-pilot (first pilot-ids)))))
 
 (defn load-acmi
   [_]
@@ -83,18 +122,21 @@
                 (set! #(do
                          (reset! loading? true)
                          (go
-                           (<! (async/timeout 250))
+                           ;; Give the loading spinner a chance to
+                           ;; start, not that it does much good.
+                           (<! (async/timeout 100))
                            (let [contents (-> % .-target .-result)]
                              (reset! acmi (acmi/read-acmi contents))
-                             (reset! selected-pass-index
-                                     (if (= 1 (log/spy (count @passes)))
-                                       0
-                                       nil))
+                             (let [carrier-ids (log/spy (->>  @passes
+                                                              (map :carrier-id)
+                                                              distinct))]
+                               (when (= 1 (count carrier-ids))
+                                 (change-carrier (first carrier-ids))))
                              (reset! loading? false))))))
             (.readAsText reader file)))))))
 
 (defn time-str
-  [ref-time t]
+  [acmi t]
   ;; For now we're just going to assume the reference time is midnight
   (let [s (mod t 60)
         t (long (/ t 60))
@@ -103,8 +145,8 @@
     (gstring/format "%02d:%02d:%02d" h m s)))
 
 (defn property
-  [id prop]
-  (get-in @final-entities [id prop]))
+  [acmi id prop]
+  (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
 
 
 (def view-bounds
@@ -235,23 +277,30 @@ L30 1100")))
           :cy (* elevation-exaggeration height)
           :r 25))))))
 
-(def angular-exaggeration 5)
-
-(defn exaggerate-angle
-  "Map a cartesian coordinate into polar coordinates, multiplies theta
-  by factor, and translates back into cartian coordinates."
-  ;; TODO: This needs to not exaggerate angles larger than a certain
-  ;; amount - it winds up looking weird.
-  [[x y] factor]
-  (let [r (Math/sqrt (* x x) (* y y))
-        ax (Math/abs x)
-        ay (Math/abs y)
-        theta (Math/atan2 ay ax)
-        x' (* r (Math/cos (* theta factor)))
-        y' (* r (Math/sin (* theta factor)))]
-    ;; Sign of coordinates should match original signs
-    [(* x' (/ x ax))
-     (* y' (/ y ay))]))
+(let [angular-exaggeration 4
+      x1 (units/deg->rad 5)
+      x2 (units/deg->rad 45)]
+ (defn exaggerate-angle
+   "Make small angles bigger."
+   ([rad]
+    (cond
+      (< (Math/abs rad) x1) (* angular-exaggeration rad)
+      (< (Math/abs rad) x2) (-> rad
+                                (- x1)
+                                (/ angular-exaggeration)
+                                (+ (* angular-exaggeration x1)))
+      :else rad))
+   ([x y]
+    (let [r (Math/sqrt (* x x) (* y y))
+          ax (Math/abs x)
+          ay (Math/abs y)
+          theta (Math/atan2 ay ax)
+          theta' (exaggerate-angle theta)
+          x' (* r (Math/cos theta'))
+          y' (* r (Math/sin theta'))]
+      ;; Sign of coordinates should match original signs
+      [(* x' (/ x ax))
+       (* y' (/ y ay))]))))
 
 (defn plan-path
   [pass]
@@ -262,8 +311,7 @@ L30 1100")))
      (for [[t data] frames]
        (let [{:keys [::grading/downrange
                      ::grading/crosstrack-error]} data
-             [downrange* crosstrack*] (exaggerate-angle [downrange crosstrack-error]
-                                                        angular-exaggeration)]
+             [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
          ;; TODO: Exaggerate the angle to make errors more obvious
          (svg/circle
           :cx (if (pos? downrange) downrange* downrange)
@@ -297,7 +345,7 @@ L30 1100")))
        (carrier-elevation z)
        (for [x (range 0 east 1000)]
          [(svg/line
-           :attr {:class "plan range guideline"}
+           :attr {:class "elevation range guideline"}
            :x1 x
            :y1 low
            :x2 x
@@ -322,6 +370,25 @@ L30 1100")))
            :x 8500
            :y -20
            (str angle "°"))])
+       ;; Guidelines for 3/4 mile, 480 feet
+       (svg/line
+        :attr {:class "elevation guideline three-quarter-mile"}
+        :x1 west
+        :y1 (* (- 480 z) elevation-exaggeration)
+        :x2 east
+        :y2 (* (- 480 z) elevation-exaggeration))
+       (svg/text
+        :transform "scale(1 -1)"
+        :attr {:class "axis-label elevation height three-quarter-mile"}
+        :x (+ west 20)
+        :y (* (- z 490) elevation-exaggeration)
+        "480")
+       (svg/line
+        :attr {:class "elevation range guideline three-quarter-mile"}
+        :x1 (units/nm->ft 0.75)
+        :y1 low
+        :x2 (units/nm->ft 0.75)
+        :y2 high)
        ;; A nil stops rendering. But an empty collection does not
        (if selected-pass
          (elevation-path selected-pass)
@@ -364,20 +431,28 @@ L30 1100")))
          :x x
          :y south
          (str x))])
+     (svg/line
+      :attr {:class "plan range guideline three-quarter-mile"}
+      :x1 (units/nm->ft 0.75)
+      :y1 north
+      :x2 (units/nm->ft 0.75)
+      :y2 south)
      (for [x (range -3 4 1)]
-       [(svg/line
-         :transform (gstring/format "rotate(%f)" (* x angular-exaggeration))
-         :attr {:class "plan angle guideline"}
-         :x1 0
-         :y1 0
-         :x2 (* east 2)
-         :y2 0)
-        (svg/text
-         :transform (gstring/format "rotate(%f)" (* (- x) angular-exaggeration))
-         :attr {:class "axis-label plan angle"}
-         :x 8500
-         :y -20
-         (str x "°"))])
+       (let [xr (units/deg->rad x)
+             angle (units/rad->deg (exaggerate-angle xr))]
+         [(svg/line
+           :transform (gstring/format "rotate(%f)" angle)
+           :attr {:class "plan angle guideline"}
+           :x1 0
+           :y1 0
+           :x2 (* east 2)
+           :y2 0)
+          (svg/text
+           :transform (gstring/format "rotate(%f)" angle)
+           :attr {:class "axis-label plan angle"}
+           :x 8500
+           :y -20
+           (str x "°"))]))
      (svg/g
       ;; We need to invert the y axis because of the way the coordinate
       ;; systems interact: in landing space, crosstrack error increases
@@ -398,6 +473,113 @@ L30 1100")))
     (if (= false value)
         (.removeAttribute elem "viewBox")
         (.setAttribute elem "viewBox" value)))
+
+(def carrier-select-ui
+  [(label :for "carrier-select" "Carrier:")
+   (formula-of
+    [acmi passes selected-pass-descriptor]
+    (select
+     :id "carrier-select"
+     :change #(change-carrier @%)
+     (let [{:keys [carrier-id]} selected-pass-descriptor
+           carrier-ids (->> passes
+                            (map :carrier-id)
+                            distinct)]
+       (into (if carrier-id
+               []
+               [(option
+                 :selected true
+                 :value ""
+                 "Select a carrier")])
+             (for [[cid name] (->> (for [id carrier-ids]
+                                     [id (property acmi id "Name")])
+                                   (sort-by second))]
+               (option
+                :selected (= cid carrier-id)
+                :value cid
+                name))))))])
+
+(def pilot-select-ui
+  [(label :for "pilot-select" "Pilot:")
+   (formula-of
+    [acmi passes selected-pass-descriptor]
+    (select
+     :id "pilot-select"
+     :change #(change-pilot @%)
+     (let [{:keys [carrier-id pilot-id]} selected-pass-descriptor
+           pilot-ids (->> passes
+                          (filter #(= carrier-id
+                                      (:carrier-id %)))
+                          (map :pilot-id)
+                          distinct)]
+       (into (if pilot-id
+               []
+               [(option
+                 :selected true
+                 :value ""
+                 "Select a pilot")])
+             (for [[pid name] (->> (for [id pilot-ids]
+                                     [id (property acmi id ::acmi/pilot)])
+                                   (sort-by second))]
+               (option
+                :selected (= pid pilot-id)
+                :value pid
+                name))))))])
+
+(def pass-select-ui
+  [(label :for "pass-select" "Pass starting at:")
+   (formula-of
+    [acmi passes selected-pass-descriptor]
+    (select
+     :id "pass-select"
+     :change #(change-pass (js/Number. @%))
+     (let [{:keys [carrier-id pilot-id index]} selected-pass-descriptor
+           passes* (->> passes
+                        (filter #(= carrier-id (:carrier-id %)))
+                        (filter #(= pilot-id (:pilot-id %)))
+                        (sort-by :index))]
+       (into (if index
+               []
+               (if-not pilot-id
+                 []
+                 [(option
+                   :selected true
+                   :value ""
+                   "Select a pass")]))
+             (for [pass passes*]
+               (option
+                :selected (= (:index pass) index)
+                :value (-> pass :index str)
+                (time-str acmi (:start pass))))))))])
+
+(def pass-selection-ui
+  (fieldset
+   :id "pass-selection-section"
+   (legend "Pass selection")
+   carrier-select-ui
+   pilot-select-ui
+   pass-select-ui)
+
+  ;; TODO: Move this to the bottom as a summary
+  #_[(table
+      :id "passes"
+      (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
+      (tbody
+       (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
+         (do
+           (log/debug :index index
+                      :carrier-id carrier-id
+                      :pilot-id pilot-id)
+           (tr
+            (td (input :type "radio"
+                       :name "pass"
+                       :click #(reset! selected-pass-index @index)
+                       :checked (formula-of
+                                 [selected-pass-index]
+                                 (= selected-pass-index index))))
+            (td (cell= (property carrier-id "Name")))
+            (td (cell= (property pilot-id ::acmi/pilot)))
+            (td (cell= (time-str reference-time start))))))))])
 
 (html
  (head
@@ -427,30 +609,39 @@ L30 1100")))
           (img :id "winglogo"
                :src "images/1stVFW_Insignia-64.png")))
   (button :click load-acmi "Load ACMI")
-  (if-tpl loading?
-    (img :id "spinner" :src "images/spinner.gif")
-    (let [mt? (cell= (empty? passes))]
-      (div
-       (if-tpl mt?
-         (div "No passes detected")
-         [(table
-           :id "passes"
-           (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
-           (tbody
-            (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
-              (do
-                (log/debug :index index
-                           :carrier-id carrier-id
-                           :pilot-id pilot-id)
-                (tr
-                 (td (input :type "radio"
-                            :name "pass"
-                            :click #(reset! selected-pass-index @index)
-                            :checked (formula-of
-                                      [selected-pass-index]
-                                      (= selected-pass-index index))))
-                 (td (cell= (property carrier-id "Name")))
-                 (td (cell= (property pilot-id ::acmi/pilot)))
-                 (td (cell= (time-str reference-time start))))))))])
-       (elevation)
-       (plan))))))
+  (formula-of
+   [acmi loading? passes]
+   (cond
+     (not acmi) (div "No ACMI file loaded")
+     loading? (img :id "spinner" :src "images/spinner.gif")
+     (empty? passes) (div "No passes detected in loaded ACMI")
+     :else pass-selection-ui))
+  (elevation)
+  (plan)
+  #_(if-tpl loading?
+      (img :id "spinner" :src "images/spinner.gif")
+      (let [mt? (cell= (empty? passes))]
+        (div
+         (if-tpl mt?
+           (div "No passes detected")
+           [(table
+             :id "passes"
+             (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
+             (tbody
+              (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
+                (do
+                  (log/debug :index index
+                             :carrier-id carrier-id
+                             :pilot-id pilot-id)
+                  (tr
+                   (td (input :type "radio"
+                              :name "pass"
+                              :click #(reset! selected-pass-index @index)
+                              :checked (formula-of
+                                        [selected-pass-index]
+                                        (= selected-pass-index index))))
+                   (td (cell= (property carrier-id "Name")))
+                   (td (cell= (property pilot-id ::acmi/pilot)))
+                   (td (cell= (time-str reference-time start))))))))])
+         (elevation)
+         (plan))))))
