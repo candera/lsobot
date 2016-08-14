@@ -17,6 +17,8 @@
    [cljs.core.async.macros :refer [go go-loop]]
    [lsobot.macros :refer [formula-of defformula]]))
 
+;;; State
+
 (defc pass-parameters grading/default-parameters)
 
 (defc acmi nil)
@@ -133,27 +135,49 @@
                              (reset! loading? false))))))
             (.readAsText reader file)))))))
 
+;;; Utilities
+
 (defn time-str
   [acmi t]
   ;; For now we're just going to assume the reference time is midnight
   (let [s (mod t 60)
         t (long (/ t 60))
         m (mod t 60)
-        h (long (/ t 60))]
-    (gstring/format "%02d:%02d:%02d" h m s)))
+        t (long (/ t 60))
+        h (mod t 24)
+        d (long (/ t 24))]
+    (gstring/format "%02d/%02d:%02d:%02d" (inc d) h m s)))
 
 (defn property
   [acmi id prop]
   (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
 
+;;; UI
+
+(defmethod do! :viewBox
+  [elem _ value]
+  (log/debug "viewBox" :value value)
+  (if (= false value)
+    (.removeAttribute elem "viewBox")
+    (.setAttribute elem "viewBox" value)))
+
+(defmethod do! :preserveAspectRatio
+  [elem _ value]
+  (log/debug "preserveAspectRatio" :value value)
+  (if (= false value)
+    (.removeAttribute elem "preserveAspectRatio")
+    (.setAttribute elem "preserveAspectRatio" value)))
 
 (def view-bounds
   {:west -1500
-   :east (units/nm->ft 1.5)
+   :east (units/nm->ft 1.45)
    :north (units/nm->ft -0.4)
    :south (units/nm->ft 0.4)
    :high (units/nm->ft 0.6)
-   :low -500})
+   :low -500
+   :fast 3                              ; Degrees AOA
+   :slow 10                             ; Degrees AOA
+   })
 
 (defn carrier-elevation
   "SVG data for the elevation view of the carrier"
@@ -167,10 +191,7 @@
     ;; The class attribute doesn't work correctly on SVG
     ;; elements, but we can use :attr to pull it off.
     :attr {:class "carrier-side"}
-    :d (gstring/format "M-50 0
-L0 %f
-L-1100 %f
-L-1100 0"
+    :d (gstring/format "M-50 0 L0 %f L-1100 %f L-1100 0"
                        (double deck-height)
                        (double deck-height)))
    (svg/rect
@@ -216,6 +237,9 @@ L30 1100")]
        ;; increasing forward
        (svg/clipPath
         :id "carrier-outline-clip"
+        ;; Much as I would like to employ an SVG <use> element here,
+        ;; rather than repeat myself from earlier, it doesn't render
+        ;; right in Firefox or Safari
         (svg/path
          :d "M80 1100
 L250 1100
@@ -260,11 +284,30 @@ L30 1100")))
          :x2 "140"
          :y2 "0"))))]))
 
+(defn aoa-path
+  "returns SVG data that shows the AOA data"
+  [pass]
+  (let [{:keys [frames]} pass]
+    (svg/g
+     :attr {:class "aoa-data"}
+     (for [[t data] frames
+           :let [{:keys [::grading/aoa
+                         ::grading/downrange]} data]
+           :when (and aoa (pos? downrange))]
+       (svg/line
+        :attr {"t" t
+               "path-a" (::grading/path-a data)
+               "pitch"  (::grading/pitch data)}
+        :x1 (- downrange 20)
+        :x2 (+ downrange 20)
+        :y1 aoa
+        :y2 aoa)))))
+
 (def elevation-exaggeration 4)
 
 (defn elevation-path
   [pass]
-  (let [{:keys [frames pilot-id]} pass]
+  (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "approach-path"}
      (for [[t data] frames]
@@ -316,9 +359,67 @@ L30 1100")))
           :cy (if (pos? downrange) crosstrack* crosstrack-error)
           :r 25))))))
 
-(defn elevation
+(defn range-lines
+  "Draw the lines that show range, with their labels."
+  [y1 y2 text-transform class]
+  (for [x (range 0 (:east view-bounds) 1000)]
+    [(svg/line
+      :attr {:class (str class " range guideline")}
+      :x1 x
+      :y1 y1
+      :x2 x
+      :y2 y2)
+     (svg/text
+      :transform text-transform
+      :attr {:class (str class " axis-label range")}
+      :x x
+      :y 0
+      (str x))]))
+
+(def aoa
+  (formula-of
+   [selected-pass]
+   (let [{:keys [west east fast slow]} view-bounds
+         aspect-ratio (/ (- slow fast) (- east west))]
+     (svg/svg
+      :attr {"xmlns" "http://www.w3.org/2000/svg"}
+      :preserveAspectRatio "none"
+      :viewBox (gstring/format "%d %d %d %d"
+                               west
+                               slow
+                               (- east west)
+                               (- slow fast))
+      :id "aoa"
+      (svg/g
+       :transform (gstring/format "scale(1 -1) translate(0 %f)"
+                                  (* -2 slow))
+       (range-lines slow
+                    fast
+                    (gstring/format "translate(0 %f) scale(1 %f)"
+                                    (+ fast 0.1)
+                                    (* (- aspect-ratio) (- slow fast)))
+                    "aoa")
+       (for [y (range (+ fast 1) slow 1)]
+         [(svg/line
+            :attr {:class "aoa guideline aoa-value"}
+            :x1 west
+            :y1 y
+            :x2 east
+            :y2 y)
+          (svg/text
+           :transform (gstring/format "translate(0 %f) scale(1 %f)"
+                                      (+ y 0.05)
+                                      (* (- aspect-ratio) (- slow fast)))
+           :attr {:class "aoa axis-label aoa-value"}
+           :x (+ west 50)
+           :y 0
+           (str y))])
+       (if-not selected-pass
+         []
+         (aoa-path selected-pass)))))))
+
+(def elevation
   "Draws the side view of the pass."
-  []
   (formula-of
    [pass-parameters selected-pass]
    (let [{:keys [west east high low]} view-bounds
@@ -341,19 +442,11 @@ L30 1100")))
         :width (- east west)
         :height (+ (* 2 z) high))
        (carrier-elevation z)
-       (for [x (range 0 east 1000)]
-         [(svg/line
-           :attr {:class "elevation range guideline"}
-           :x1 x
-           :y1 low
-           :x2 x
-           :y2 high)
-          (svg/text
-           :transform "scale(1 -1)"
-           :attr {:class "axis-label plan range"}
-           :x x
-           :y (- (+ low z))
-           (str x))])
+       (range-lines low
+                    high
+                    (gstring/format "scale(1 -1) translate(0 %f)"
+                                    (- (+ low z)))
+                    "elevation")
        (for [angle (range 2.5 5 0.5)]
          [(svg/line
            :transform (gstring/format "rotate(%f)" (* angle elevation-exaggeration))
@@ -368,19 +461,19 @@ L30 1100")))
            :x 8500
            :y -20
            (str angle "°"))])
-       ;; Guidelines for 3/4 mile, 480 feet
+       ;; Guidelines for 3/4 mile, 450 feet
        (svg/line
         :attr {:class "elevation guideline three-quarter-mile"}
         :x1 west
-        :y1 (* (- 480 z) elevation-exaggeration)
+        :y1 (* (- 450 z) elevation-exaggeration)
         :x2 east
-        :y2 (* (- 480 z) elevation-exaggeration))
+        :y2 (* (- 450 z) elevation-exaggeration))
        (svg/text
         :transform "scale(1 -1)"
         :attr {:class "axis-label elevation height three-quarter-mile"}
         :x (+ west 20)
-        :y (* (- z 490) elevation-exaggeration)
-        "480")
+        :y (* (- z 460) elevation-exaggeration)
+        "450")
        (svg/line
         :attr {:class "elevation range guideline three-quarter-mile"}
         :x1 (units/nm->ft 0.75)
@@ -398,9 +491,8 @@ L30 1100")))
         :r 20)
        )))))
 
-(defn plan
+(def plan
   "Draws the top view of the pass."
-  []
   (let [{:keys [west east north south]} view-bounds]
     (svg/svg
      :attr {"xmlns" "http://www.w3.org/2000/svg"}
@@ -417,18 +509,10 @@ L30 1100")))
       :y1 0
       :x2 east
       :y2 0)
-     (for [x (range 0 east 1000)]
-       [(svg/line
-         :attr {:class "plan range guideline"}
-         :x1 x
-         :y1 north
-         :x2 x
-         :y2 south)
-        (svg/text
-         :attr {:class "axis-label plan range"}
-         :x x
-         :y south
-         (str x))])
+     (range-lines north
+                  south
+                  (gstring/format "translate(0 %f)" south)
+                  "plan")
      (svg/line
       :attr {:class "plan range guideline three-quarter-mile"}
       :x1 (units/nm->ft 0.75)
@@ -465,12 +549,6 @@ L30 1100")))
        :cx 0
        :cy 0
        :r 20)))))
-
-(defmethod do! :viewBox
-    [elem _ value]
-    (if (= false value)
-        (.removeAttribute elem "viewBox")
-        (.setAttribute elem "viewBox" value)))
 
 (def carrier-select-ui
   [(label :for "carrier-select" "Carrier:")
@@ -581,14 +659,7 @@ L30 1100")))
             (td (cell= (property pilot-id ::acmi/pilot)))
             (td (cell= (time-str reference-time start))))))))])
 
-(html
- (head
-  (title "LSOBot")
-  (link :href "style.css" :rel "stylesheet" :title "main" :type "text/css")
-  (link :href "https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300"
-        :rel "stylesheet"
-        :type "text/css"))
- (body
+(def titlebar
   (div :id "titlebar"
        (div :id "words"
             (span :id "title"
@@ -607,7 +678,17 @@ L30 1100")))
        (a :href "http://firstfighterwing.com"
           :target "_blank"
           (img :id "winglogo"
-               :src "images/1stVFW_Insignia-64.png")))
+               :src "images/1stVFW_Insignia-64.png"))))
+
+(html
+ (head
+  (title "LSOBot")
+  (link :href "style.css" :rel "stylesheet" :title "main" :type "text/css")
+  (link :href "https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300"
+        :rel "stylesheet"
+        :type "text/css"))
+ (body
+  titlebar
   (if-tpl loading?
     [(div
       :id "loading-placeholder"
@@ -622,8 +703,9 @@ L30 1100")))
      (not acmi) (div "No ACMI file loaded")
      (empty? passes) (div "No passes detected in loaded ACMI")
      :else pass-selection-ui))
-  (elevation)
-  (plan)))
+  aoa
+  elevation
+  plan))
 
 (comment
   ;; This draw the table of passes. Might use it again

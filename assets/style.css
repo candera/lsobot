@@ -94,13 +94,18 @@ tr:nth-child(even) {
     height: 20px;
 }
 
-#elevation,#plan {
+#elevation,#plan,#aoa {
     background: #010144;
     display: block;
     border: solid 1px black;
     margin-top: 7px;
     width: 100%;
     /* max-width: 1024px;*/
+}
+
+#aoa {
+    background: #010144;
+    height: 200px;
 }
 
 .carrier {
@@ -147,6 +152,24 @@ tr:nth-child(even) {
     opacity: 0.7;
     stroke-width: 5;
     stroke-dasharray: 50 50;
+}
+
+.aoa.range.guideline {
+    stroke-width: 0.02;
+    stroke-dasharray: 0.1 0.1;
+}
+
+.aoa.axis-label {
+}
+
+.aoa.aoa-value.guideline {
+    stroke-width: 0.02;
+}
+
+.aoa-data {
+    stroke: white;
+    stroke-width: 0.05;
+    opacity: 1.0;
 }
 
 .axis-label {

@@ -424,3 +424,44 @@
       ;;count
       ))
 
+
+(let [a5 (-> "/tmp/TAPE0005.txt.acmi" slurp acmi/read-acmi)
+      pilot-id "ce64830b00000001"
+      carrier-id "ce64830b0000000d"
+      frame (-> a5 :lsobot.acmi/frames last)
+      pilot (acmi/entity frame pilot-id)
+      carrier (acmi/entity frame carrier-id)
+      ploc (map units/m->ft
+                [(:lsobot.acmi/u pilot)
+                 (:lsobot.acmi/v pilot)
+                 (:lsobot.acmi/alt pilot)])
+      cloc (map units/m->ft
+                [(:lsobot.acmi/u carrier)
+                 (:lsobot.acmi/v carrier)
+                 0])]
+  #_(pprint { ;; :pilot pilot
+             ;; :carrier carrier
+             :ploc ploc
+             :cloc cloc
+             :lp (map - ploc cloc)})
+  (-> (grading/characterize-frame carrier-id
+                                  pilot-id
+                                  grading/default-parameters
+                                  frame)
+
+      pprint))
+
+
+(def fp8 (grading/find-passes
+          a8
+          "3bbb115200000004"
+          "3bbb115200000001"
+          grading/default-parameters))
+
+(->> fp8
+     first
+     (map second)
+     rand-nth
+     ::grading/aoa
+     pprint
+     )
