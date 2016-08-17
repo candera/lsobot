@@ -105,7 +105,7 @@ tr:nth-child(even) {
 
 #aoa {
     background: #010144;
-    height: 200px;
+    /* height: 200px; */
 }
 
 .carrier {
@@ -154,21 +154,21 @@ tr:nth-child(even) {
     stroke-dasharray: 50 50;
 }
 
-.aoa.range.guideline {
-    stroke-width: 0.02;
-    stroke-dasharray: 0.1 0.1;
-}
+/* .aoa.range.guideline { */
+/*     stroke-width: 0.02; */
+/*     stroke-dasharray: 0.1 0.1; */
+/* } */
 
 .aoa.axis-label {
 }
 
-.aoa.aoa-value.guideline {
-    stroke-width: 0.02;
-}
+/* .aoa.aoa-value.guideline { */
+/*     stroke-width: 0.02; */
+/* } */
 
 .aoa-data {
     stroke: white;
-    stroke-width: 0.05;
+    stroke-width: 20;
     opacity: 1.0;
 }
 

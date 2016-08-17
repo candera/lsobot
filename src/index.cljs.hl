@@ -1,5 +1,6 @@
 (page "index.html"
-  (:require [goog.dom :as gdom]
+  (:require [clojure.string :as str]
+            [goog.dom :as gdom]
             [goog.string :as gstring]
             [goog.string.format]
             [goog.style :as gstyle]
@@ -103,6 +104,54 @@
     (when (= 1 (count pilot-ids))
       (change-pilot (first pilot-ids)))))
 
+;;; Utilities
+
+(defn time-str
+  [acmi t]
+  ;; For now we're just going to assume the reference time is midnight
+  (let [s (mod t 60)
+        t (long (/ t 60))
+        m (mod t 60)
+        t (long (/ t 60))
+        h (mod t 24)
+        d (long (/ t 24))]
+    (gstring/format "%02d/%02d:%02d:%02d" (inc d) h m s)))
+
+(defn property
+  [acmi id prop]
+  (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
+
+(defn line-seq
+  "Return a lazy sequence of lines from file."
+  [file]
+  (let [chunks (async/chan)
+        lines (async/chan)
+        reader (js/FileReader.)
+        chunk-size 1024]
+    (-> reader
+        .-onload
+        (set! #(go (->> % .-target .-result (>! chunks)))))
+    ;; Read chunks from file
+    (go-loop [offset 0]
+      ;; TODO
+      )
+    ;; Split chunks into lines
+    (go-loop [leftover ""]
+      (when-let [chunk (<! chunks)]
+        (let [parse (str/split-lines (str leftover chunk))
+              [complete partial] (if (.endsWith chunk "\n")
+                                   [parts ""]
+                                   [(butlast parts) (last parts)])]
+          (doseq [line complete]
+            (>! lines line))
+          (recur partial))))
+    ;; TODO: Convert to lazy sequence. How do do that in
+    ;; Clojurescript? Is it even possible? Maybe we just go with
+    ;; channels, since they're universal.
+    ))
+
+;;; Serialization
+
 (defn load-acmi
   [_]
   (let [i (gdom/createElement "input")
@@ -135,22 +184,6 @@
                              (reset! loading? false))))))
             (.readAsText reader file)))))))
 
-;;; Utilities
-
-(defn time-str
-  [acmi t]
-  ;; For now we're just going to assume the reference time is midnight
-  (let [s (mod t 60)
-        t (long (/ t 60))
-        m (mod t 60)
-        t (long (/ t 60))
-        h (mod t 24)
-        d (long (/ t 24))]
-    (gstring/format "%02d/%02d:%02d:%02d" (inc d) h m s)))
-
-(defn property
-  [acmi id prop]
-  (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
 
 ;;; UI
 
@@ -177,6 +210,7 @@
    :low -500
    :fast 3                              ; Degrees AOA
    :slow 10                             ; Degrees AOA
+   :aoa-aspect 6.7
    })
 
 (defn carrier-elevation
@@ -284,24 +318,35 @@ L30 1100")))
          :x2 "140"
          :y2 "0"))))]))
 
+(def pitch-exaggeration 1)
+
 (defn aoa-path
-  "returns SVG data that shows the AOA data"
-  [pass]
+  "Returns SVG data that shows the AOA data"
+  [scale pass]
   (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "aoa-data"}
      (for [[t data] frames
            :let [{:keys [::grading/aoa
-                         ::grading/downrange]} data]
+                         ::grading/downrange
+                         ::grading/pilot]} data]
            :when (and aoa (pos? downrange))]
        (svg/line
         :attr {"t" t
+               "aoa" aoa
                "path-a" (::grading/path-a data)
-               "pitch"  (::grading/pitch data)}
-        :x1 (- downrange 20)
-        :x2 (+ downrange 20)
-        :y1 aoa
-        :y2 aoa)))))
+               "pitch"  (-> data ::grading/pilot ::acmi/pitch)}
+        :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                   downrange
+                                   (* scale aoa)
+                                   (-> data
+                                       ::grading/pilot
+                                       ::acmi/pitch
+                                       (* -1 pitch-exaggeration)))
+        :x1 -30
+        :x2 30
+        :y1 0
+        :y2 0)))))
 
 (def elevation-exaggeration 4)
 
@@ -318,21 +363,23 @@ L30 1100")))
           :cy (* elevation-exaggeration height)
           :r 25))))))
 
-(let [angular-exaggeration 4
-      x1 (units/deg->rad 5)
-      x2 (units/deg->rad 45)]
+(let [angular-exaggeration 2
+      x1 (units/deg->rad 2)
+      x2 (units/deg->rad 10)]
  (defn exaggerate-angle
-   "Make small angles bigger."
+   "Make small angles bigxbger."
    ([rad]
     (cond
       (< (Math/abs rad) x1) (* angular-exaggeration rad)
       (< (Math/abs rad) x2) (-> rad
+                                Math/abs
                                 (- x1)
                                 (/ angular-exaggeration)
-                                (+ (* angular-exaggeration x1)))
+                                (+ (* angular-exaggeration x1))
+                                (* (/ rad (Math/abs rad))))
       :else rad))
    ([x y]
-    (let [r (Math/sqrt (* x x) (* y y))
+    (let [r (Math/sqrt (+ (* x x) (* y y)))
           ax (Math/abs x)
           ay (Math/abs y)
           theta (Math/atan2 ay ax)
@@ -379,44 +426,45 @@ L30 1100")))
 (def aoa
   (formula-of
    [selected-pass]
-   (let [{:keys [west east fast slow]} view-bounds
-         aspect-ratio (/ (- slow fast) (- east west))]
+   (let [{:keys [west east fast slow aoa-aspect]} view-bounds
+         scale (/ (- east west) (- slow fast) aoa-aspect)]
+     (log/debug "aoa" :scale scale)
      (svg/svg
       :attr {"xmlns" "http://www.w3.org/2000/svg"}
-      :preserveAspectRatio "none"
-      :viewBox (gstring/format "%d %d %d %d"
+      ;;:preserveAspectRatio "none"
+      :viewBox (gstring/format "%f %f %f %f"
                                west
-                               slow
+                               (* slow scale)
                                (- east west)
-                               (- slow fast))
+                               (* (- slow fast) scale))
       :id "aoa"
       (svg/g
        :transform (gstring/format "scale(1 -1) translate(0 %f)"
-                                  (* -2 slow))
-       (range-lines slow
-                    fast
-                    (gstring/format "translate(0 %f) scale(1 %f)"
-                                    (+ fast 0.1)
-                                    (* (- aspect-ratio) (- slow fast)))
+                                  (* -2 slow scale))
+       (range-lines (* slow scale)
+                    (* fast scale)
+                    (gstring/format "scale(1 -1) translate(0 %f)"
+                                    (* -1 scale (+ fast 0.1))
+                                    #_(* (- aspect-ratio) (- slow fast)))
                     "aoa")
        (for [y (range (+ fast 1) slow 1)]
          [(svg/line
             :attr {:class "aoa guideline aoa-value"}
             :x1 west
-            :y1 y
+            :y1 (* scale y)
             :x2 east
-            :y2 y)
+            :y2 (* scale y))
           (svg/text
-           :transform (gstring/format "translate(0 %f) scale(1 %f)"
-                                      (+ y 0.05)
-                                      (* (- aspect-ratio) (- slow fast)))
+           :transform (gstring/format "scale(1 -1) translate(0 %f)"
+                                      (* -1 scale (+ y 0.05))
+                                      #_(* (- aspect-ratio) (- slow fast)))
            :attr {:class "aoa axis-label aoa-value"}
            :x (+ west 50)
            :y 0
-           (str y))])
+           (str y "°"))])
        (if-not selected-pass
          []
-         (aoa-path selected-pass)))))))
+         (aoa-path scale selected-pass)))))))
 
 (def elevation
   "Draws the side view of the pass."
@@ -519,7 +567,7 @@ L30 1100")))
       :y1 north
       :x2 (units/nm->ft 0.75)
       :y2 south)
-     (for [x (range -3 4 1)]
+     (for [x (range -2 2.1 1)]
        (let [xr (units/deg->rad x)
              angle (units/rad->deg (exaggerate-angle xr))]
          [(svg/line
@@ -528,13 +576,16 @@ L30 1100")))
            :x1 0
            :y1 0
            :x2 (* east 2)
-           :y2 0)
-          (svg/text
-           :transform (gstring/format "rotate(%f)" angle)
-           :attr {:class "axis-label plan angle"}
-           :x 8500
-           :y -20
-           (str x "°"))]))
+           :y2 0)]))
+     (for [x [-2 -1 0 1 2]]
+       (let [xr (units/deg->rad x)
+             angle (units/rad->deg (exaggerate-angle xr))]
+         (svg/text
+          :transform (gstring/format "rotate(%f)" angle)
+          :attr {:class "axis-label plan angle"}
+          :x 8000
+          :y -20
+          (str (.toFixed x 1) "°"))))
      (svg/g
       ;; We need to invert the y axis because of the way the coordinate
       ;; systems interact: in landing space, crosstrack error increases

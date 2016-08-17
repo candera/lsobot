@@ -461,7 +461,90 @@
 (->> fp8
      first
      (map second)
-     rand-nth
-     ::grading/aoa
-     pprint
+     (map ::grading/pilot)
+     (map ::acmi/throttle)
+     distinct
      )
+
+(let [path "/tmp/LSOBot Test Passes 8-11-16.txt.acmi"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/passes file grading/default-parameters)
+      carrier-id (-> passes keys rand-nth)
+      pilot-id (-> passes (get carrier-id) keys rand-nth)
+      pilot-pass (-> passes (get-in [carrier-id pilot-id]) rand-nth)
+      [t data] (rand-nth pilot-pass)]
+  (println :carrier-id carrier-id :pilot-id pilot-id :t t)
+  (-> data ::grading/pilot class #_ ::acmi/throttle)
+  )
+
+(let [angular-exaggeration 4
+      x1 (units/deg->rad 2)
+      x2 (units/deg->rad 10)]
+ (defn exaggerate-angle
+   "Make small angles bigger."
+   ([rad]
+    (cond
+      (< (Math/abs rad) x1) (* angular-exaggeration rad)
+      (< (Math/abs rad) x2) (-> rad
+                                (- x1)
+                                (/ angular-exaggeration)
+                                (+ (* angular-exaggeration x1)))
+      :else rad))
+   ([x y]
+    (let [r (Math/sqrt (+ (* x x) (* y y)))
+          ax (Math/abs x)
+          ay (Math/abs y)
+          theta (Math/atan2 ay ax)
+          theta' (exaggerate-angle theta)
+          x' (* r (Math/cos theta'))
+          y' (* r (Math/sin theta'))]
+      ;; Sign of coordinates should match original signs
+      [(* x' (/ x ax))
+       (* y' (/ y ay))]))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Below this line, we switched to async processing, so the above may
+;; not work
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(let [lines (async/chan 10)]
+  (->> "/tmp/2016-08-12-WSF-yellowjacket5-Sting51.txt.acmi"
+       clojure.java.io/reader
+       line-seq
+       (take 1000000)
+       (async/onto-chan lines))
+  (def l8 (acmi/read-acmi lines))
+  #_(def l8 lines))
+
+(def c8 (atom 0))
+
+(def f8 (future
+          (while (async/<!! l8)
+            (swap! c8 inc))))
+
+(time
+ (async/go-loop [last-frame nil
+                 n 0]
+   (if-let [frame (async/<! l8)]
+     (recur frame (inc n))
+     #_[last-frame n]
+     [(class last-frame) n])))
+
+(count a8)
+
+(-> a8 last pprint)
+
+(->> "/tmp/2016-08-12-WSF-yellowjacket5-Sting51.txt.acmi"
+     clojure.java.io/reader
+     line-seq
+     #_(take 100000)
+     (map acmi/parse-line)
+     count
+     #_(drop 1000)
+     #_first
+     time)
+
+
+
