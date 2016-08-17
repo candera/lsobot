@@ -104,6 +104,29 @@
     (when (= 1 (count pilot-ids))
       (change-pilot (first pilot-ids)))))
 
+(defn update-pass
+  "Change to a new pass, altering the current pass number by f."
+  [f]
+  (when-not (empty? @passes)
+    (let [{:keys [index]} @selected-pass-descriptor
+          next-index (f (or index -1))]
+      (when (<= 0 next-index (dec (count @passes)))
+        (let [next-pass (->> @passes
+                             (filter #(= next-index (:index %)))
+                             first)]
+          (reset! selected-pass-descriptor
+                  (select-keys next-pass [:carrier-id :pilot-id :index])))))))
+
+(defn next-pass
+  "Moves to the next pass in the list, if there is one."
+  []
+  (update-pass inc))
+
+(defn prev-pass
+  "Moves to the previous pass in the list, if ther eis one"
+  []
+  (update-pass dec))
+
 ;;; Utilities
 
 (defn time-str
@@ -121,7 +144,7 @@
   [acmi id prop]
   (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
 
-(defn line-seq
+#_(defn line-seq
   "Return a lazy sequence of lines from file."
   [file]
   (let [chunks (async/chan)
@@ -731,6 +754,22 @@ L30 1100")))
           (img :id "winglogo"
                :src "images/1stVFW_Insignia-64.png"))))
 
+(let [keymap {108 :l
+              110 :n
+              112 :p
+              78 :N
+              80 :P
+              ;; TODO: The rest
+              }
+      key-action {:l #(load-acmi nil)
+                  :n next-pass
+                  :p prev-pass}]
+ (defn keypress
+   [e]
+   (log/debug "Key pressed" :which (.-which e))
+   (when-let [action (some-> e .-which keymap key-action)]
+     (action))))
+
 (html
  (head
   (title "LSOBot")
@@ -739,6 +778,7 @@ L30 1100")))
         :rel "stylesheet"
         :type "text/css"))
  (body
+  :keypress keypress
   titlebar
   (if-tpl loading?
     [(div
