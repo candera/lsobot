@@ -754,21 +754,35 @@ L30 1100")))
           (img :id "winglogo"
                :src "images/1stVFW_Insignia-64.png"))))
 
-(let [keymap {108 :l
-              110 :n
-              112 :p
-              78 :N
-              80 :P
-              ;; TODO: The rest
-              }
-      key-action {:l #(load-acmi nil)
-                  :n next-pass
-                  :p prev-pass}]
- (defn keypress
-   [e]
-   (log/debug "Key pressed" :which (.-which e))
-   (when-let [action (some-> e .-which keymap key-action)]
-     (action))))
+(def keymap {97 :a
+             98 :b
+             99 :c
+             108 :l
+             110 :n
+             112 :p
+             78 :N
+             80 :P
+             ;; TODO: The rest
+             })
+
+(defn scroll-to
+  [id]
+  (let [body (js/jQuery "body,html")
+        elem (js/jQuery (gdom/getElement id))]
+    (.animate body (clj->js {:scrollTop (.-top (.offset elem))}))))
+
+(def key-action {:a #(scroll-to "aoa")
+                 :b #(scroll-to "elevation")
+                 :c #(scroll-to "plan")
+                 :l #(load-acmi nil)
+                 :n next-pass
+                 :p prev-pass})
+
+(defn keypress
+  [e]
+  (log/debug "Key pressed" :which (.-which e))
+  (when-let [action (some-> e .-which keymap key-action)]
+    (action)))
 
 (html
  (head
