@@ -43,108 +43,30 @@
    :landing-point [-18 -313 74] ; x,y,z position in carrier coordinates
                                         ; zero where landing
                                         ; should aim. Feet.
-   :glideslope    [{:value 2.3
-                    :name "Too Low"
-                    :key :too-low
-                    :deviation :unacceptable
-                    :direction :low}
-                   {:value 2.7
-                    :name "Low"
-                    :key :low
-                    :deviation :major
-                    :direction :low}
-                   {:value 3.1
-                    :name "Little Low"
-                    :key :little-low
-                    :deviation :minor
-                    :direction :low}
-                   {:value 3.5
-                    :name "OK"
-                    :key :ok
-                    :deviation :nominal}
-                   {:value 3.9
-                    :name "Little High"
-                    :key :little-high
-                    :deviation :minor
-                    :direction :high}
-                   {:value 4.3
-                    :name "High"
-                    :key :high
-                    :deviation :major
-                    :direction :high}
-                   {:value 90
-                    :name "Too High"
-                    :key :too-high
-                    :deviation :unacceptable
-                    :direction :high}]
-   :aoa           [{:value 6.9
-                    :name "Too Fast"
-                    :key :too-fast
-                    :deviation :unacceptable
-                    :direction :low}
-                   {:value 7.4
-                    :name "Fast"
-                    :key :fast
-                    :deviation :major
-                    :direction :low}
-                   {:value 7.9
-                    :name "Little Fast"
-                    :key :little-fast
-                    :deviation :minor
-                    :direction :low}
-                   {:value 8.3
-                    :name "OK"
-                    :key :ok
-                    :deviation :nominal}
-                   {:value 8.8
-                    :name "Little Slow"
-                    :key :little-slow
-                    :deviation :minor
-                    :direction :high}
-                   {:value 8.8
-                    :name "Slow"
-                    :key :slow
-                    :deviation :major
-                    :direction :high}
-                   {:value 99999
-                    :name "Too Slow"
-                    :key :slow
-                    :deviation :unacceptable
-                    :direction :high}]
-   :lineup        [{:value -3
-                    :name "Too Far Right"
-                    :key :too-right
-                    :deviation :unacceptable
-                    :direction :low}
-                   {:value -2
-                    :name "Right"
-                    :key :right
-                    :deviation :major
-                    :direction :low}
-                   {:value -1
-                    :name "Little Right"
-                    :key :little-right
-                    :deviation :minor
-                    :direction :low}
-                   {:value 1
-                    :name "OK"
-                    :key :ok
-                    :deviation :nominal}
-                   {:value 2
-                    :name "Little Left"
-                    :key :little-left
-                    :deviation :minor
-                    :direction :high}
-                   {:value 3
-                    :name "Left"
-                    :key :left
-                    :deviation :major
-                    :direction :high}
-                   {:value 90
-                    :name "Too Far Left"
-                    :key :too-left
-                    :deviation :unacceptable
-                    :direction :high}]})
+   :glideslope    {:ideal      3.3
+                   :acceptable {:low  3.1
+                                :high 3.5}
+                   :minor      {:adjective "Little"
+                                :low  2.7
+                                :high 3.9}
+                   :major      {:adjective "Too"
+                                :low  2.3
+                                :high 4.3}}
+
+   :aoa           {:ideal      8.1
+                   :acceptable {:low  7.9
+                                :high 8.3}
+                   :minor      {:low  7.4
+                                :high 8.8}
+                   :major      {:low  6.9
+                                :high 8.8}}
+   :lineup        {:ideal      0
+                   :acceptable {:low  -1
+                                :high 1}
+                   :minor      {:low  -2
+                                :high 2}
+                   :major      {:low  -3
+                                :high 3}}})
 
 (def grades
   {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
