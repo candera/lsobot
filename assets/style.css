@@ -185,7 +185,7 @@ tr:nth-child(even) {
 
 .major {
     stroke: red;
-    fill: orange;
+    fill: red;
 }
 
 .guideline.good {

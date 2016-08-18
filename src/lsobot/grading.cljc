@@ -46,13 +46,10 @@
    :glideslope    {:ideal 3.3
                    :good  {:low  3.1
                            :high 3.5}
-                   :minor {:adjective "Little"
-                           :low  2.7
+                   :minor {:low  2.7
                            :high 3.9}
-                   :major {:adjective "Too"
-                           :low  2.3
+                   :major {:low  2.3
                            :high 4.3}}
-
    :aoa           {:ideal 8.1
                    :good  {:low  7.9
                            :high 8.3}
