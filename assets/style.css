@@ -104,7 +104,8 @@ tr:nth-child(even) {
 }
 
 #aoa {
-    background: #010144;
+    /* background: #010144; */
+    background: #111122;
     /* height: 200px; */
 }
 
@@ -170,6 +171,42 @@ tr:nth-child(even) {
     stroke: white;
     stroke-width: 20;
     opacity: 1.0;
+}
+
+.good,.ideal {
+    stroke: lime;
+    fill: lime;
+}
+
+.minor {
+    stroke: orange;
+    fill: orange;
+}
+
+.major {
+    stroke: red;
+    fill: orange;
+}
+
+.guideline.good {
+    stroke-width: 10;
+    stroke: lime;
+    opacity: 1;
+    stroke-dasharray: 10 30;
+}
+
+.guideline.minor {
+    stroke-width: 15;
+    stroke: orange;
+    opacity: 1;
+    stroke-dasharray: 10 30;
+}
+
+.guideline.major {
+    stroke-width: 15;
+    stroke: red;
+    opacity: 1;
+    stroke-dasharray: 10 30;
 }
 
 .axis-label {

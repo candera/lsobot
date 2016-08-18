@@ -43,30 +43,30 @@
    :landing-point [-18 -313 74] ; x,y,z position in carrier coordinates
                                         ; zero where landing
                                         ; should aim. Feet.
-   :glideslope    {:ideal      3.3
-                   :acceptable {:low  3.1
-                                :high 3.5}
-                   :minor      {:adjective "Little"
-                                :low  2.7
-                                :high 3.9}
-                   :major      {:adjective "Too"
-                                :low  2.3
-                                :high 4.3}}
+   :glideslope    {:ideal 3.3
+                   :good  {:low  3.1
+                           :high 3.5}
+                   :minor {:adjective "Little"
+                           :low  2.7
+                           :high 3.9}
+                   :major {:adjective "Too"
+                           :low  2.3
+                           :high 4.3}}
 
-   :aoa           {:ideal      8.1
-                   :acceptable {:low  7.9
-                                :high 8.3}
-                   :minor      {:low  7.4
-                                :high 8.8}
-                   :major      {:low  6.9
-                                :high 8.8}}
-   :lineup        {:ideal      0
-                   :acceptable {:low  -1
-                                :high 1}
-                   :minor      {:low  -2
-                                :high 2}
-                   :major      {:low  -3
-                                :high 3}}})
+   :aoa           {:ideal 8.1
+                   :good  {:low  7.9
+                           :high 8.3}
+                   :minor {:low  7.4
+                           :high 8.8}
+                   :major {:low  6.9
+                           :high 9.3}}
+   :lineup        {:ideal 0
+                   :good  {:low  -1
+                           :high 1}
+                   :minor {:low  -2
+                           :high 2}
+                   :major {:low  -3
+                           :high 3}}})
 
 (def grades
   {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
@@ -157,6 +157,7 @@
             pass-frame   [t (merge frame-data
                                    {::downrange        downrange
                                     ::crosstrack-error crosstrack-error
+                                    ::glideslope       (units/rad->deg (Math/atan2 height distance))
                                     ::height           height
                                     ::slope            s
                                     ::distance         d

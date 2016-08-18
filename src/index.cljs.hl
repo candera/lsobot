@@ -231,8 +231,8 @@
    :south (units/nm->ft 0.4)
    :high (units/nm->ft 0.6)
    :low -500
-   :fast 3                              ; Degrees AOA
-   :slow 10                             ; Degrees AOA
+   :fast 3                            ; Degrees AOA
+   :slow 10                           ; Degrees AOA
    :aoa-aspect 6.7
    })
 
@@ -343,9 +343,21 @@ L30 1100")))
 
 (def pitch-exaggeration 1)
 
+(defn classify
+  "Classifies the value according to params: ideal, good, minor,
+  major, unacceptable."
+  [params v]
+  (let [{:keys [ideal good minor major]} params]
+    (cond
+      (= ideal v) :ideal
+      (<= (:low good) v (:high good)) :good
+      (<= (:low minor) v (:high minor)) :minor
+      (<= (:low major) v (:high major)) :major
+      :else :unacceptable)))
+
 (defn aoa-path
   "Returns SVG data that shows the AOA data"
-  [scale pass]
+  [scale pass params]
   (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "aoa-data"}
@@ -358,7 +370,8 @@ L30 1100")))
         :attr {"t" t
                "aoa" aoa
                "path-a" (::grading/path-a data)
-               "pitch"  (-> data ::grading/pilot ::acmi/pitch)}
+               "pitch"  (-> data ::grading/pilot ::acmi/pitch)
+               :class (name (classify params aoa))}
         :transform (gstring/format "translate(%f %f) rotate(%f)"
                                    downrange
                                    (* scale aoa)
@@ -374,14 +387,16 @@ L30 1100")))
 (def elevation-exaggeration 4)
 
 (defn elevation-path
-  [pass]
+  [params pass]
   (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "approach-path"}
      (for [[t data] frames]
        (let [{:keys [::grading/downrange
-                     ::grading/height]} data]
+                     ::grading/height
+                     ::grading/glideslope]} data]
          (svg/circle
+          :attr {:class (name (classify params glideslope))}
           :cx downrange
           :cy (* elevation-exaggeration height)
           :r 25))))))
@@ -414,17 +429,19 @@ L30 1100")))
        (* y' (/ y ay))]))))
 
 (defn plan-path
-  [pass]
+  [params pass]
   (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "approach-path"}
 
      (for [[t data] frames]
        (let [{:keys [::grading/downrange
-                     ::grading/crosstrack-error]} data
+                     ::grading/crosstrack-error
+                     ::grading/course-deviation]} data
              [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
          ;; TODO: Exaggerate the angle to make errors more obvious
          (svg/circle
+          :attr {:class (name (classify params course-deviation))}
           :cx (if (pos? downrange) downrange* downrange)
           :cy (if (pos? downrange) crosstrack* crosstrack-error)
           :r 25))))))
@@ -448,7 +465,7 @@ L30 1100")))
 
 (def aoa
   (formula-of
-   [selected-pass]
+   [selected-pass pass-parameters]
    (let [{:keys [west east fast slow aoa-aspect]} view-bounds
          scale (/ (- east west) (- slow fast) aoa-aspect)]
      (log/debug "aoa" :scale scale)
@@ -472,11 +489,11 @@ L30 1100")))
                     "aoa")
        (for [y (range (+ fast 1) slow 1)]
          [(svg/line
-            :attr {:class "aoa guideline aoa-value"}
-            :x1 west
-            :y1 (* scale y)
-            :x2 east
-            :y2 (* scale y))
+           :attr {:class "aoa guideline aoa-value"}
+           :x1 west
+           :y1 (* scale y)
+           :x2 east
+           :y2 (* scale y))
           (svg/text
            :transform (gstring/format "scale(1 -1) translate(0 %f)"
                                       (* -1 scale (+ y 0.05))
@@ -485,9 +502,21 @@ L30 1100")))
            :x (+ west 50)
            :y 0
            (str y "°"))])
+       (formula-of
+        [pass-parameters]
+        (let [params (:aoa pass-parameters)]
+          (svg/g
+           (for [[k1 m] (select-keys params [:good :minor :major])
+                 [k2 v] (select-keys m [:low :high])]
+             (svg/line
+              :attr {:class (str "aoa guideline aoa-value " (name k1) " " (name k2))}
+              :x1 0
+              :y1 (* scale v)
+              :x2 east
+              :y2 (* scale v))))))
        (if-not selected-pass
          []
-         (aoa-path scale selected-pass)))))))
+         (aoa-path scale selected-pass (:aoa pass-parameters))))))))
 
 (def elevation
   "Draws the side view of the pass."
@@ -553,7 +582,7 @@ L30 1100")))
         :y2 high)
        ;; A nil stops rendering. But an empty collection does not
        (if selected-pass
-         (elevation-path selected-pass)
+         (elevation-path (:glideslope pass-parameters) selected-pass)
          [])
        (svg/circle
         :attr {:class "landing-point-dot"}
@@ -615,9 +644,9 @@ L30 1100")))
       ;; to the right
       :transform "scale(1 -1)"
       (formula-of
-       [selected-pass]
+       [selected-pass pass-parameters]
        (when selected-pass
-         (plan-path selected-pass)))
+         (plan-path (:lineup pass-parameters) selected-pass)))
       (svg/circle
        :attr {:class "landing-point-dot"}
        :cx 0
