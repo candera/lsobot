@@ -178,7 +178,11 @@ tr:nth-child(even) {
     fill: red;
 }
 
-.good,.ideal {
+.ideal {
+    stroke: white;
+}
+
+.good {
     stroke: lime;
     fill: lime;
 }
@@ -222,6 +226,16 @@ tr:nth-child(even) {
     font-size: 150px;
 }
 
+.axis-label.unacceptable {
+    stroke: red;
+    fill: red;
+}
+
+.axis-label.ideal {
+    stroke: lime;
+    fill: lime;
+}
+
 #pass-selection-section label {
     margin-right: 3px;
 }
@@ -234,3 +248,20 @@ tr:nth-child(even) {
     opacity: 1.0;
     stroke: yellow;
 }
+
+/* #aoa, #plan, #elevation { */
+/*     transform-origin: 0% 0%; */
+/*     transform: rotate(90deg); */
+/*     display: block; */
+/*     width: 80%; */
+/*     position: fixed; */
+/*     left: 27%; */
+/* } */
+
+/* #plan { */
+/*     left: 99%; */
+/* } */
+
+/* #elevation { */
+/*     left: 60%; */
+/* } */

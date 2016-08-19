@@ -145,33 +145,33 @@
   (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
 
 #_(defn line-seq
-  "Return a lazy sequence of lines from file."
-  [file]
-  (let [chunks (async/chan)
-        lines (async/chan)
-        reader (js/FileReader.)
-        chunk-size 1024]
-    (-> reader
-        .-onload
-        (set! #(go (->> % .-target .-result (>! chunks)))))
-    ;; Read chunks from file
-    (go-loop [offset 0]
-      ;; TODO
-      )
-    ;; Split chunks into lines
-    (go-loop [leftover ""]
-      (when-let [chunk (<! chunks)]
-        (let [parse (str/split-lines (str leftover chunk))
-              [complete partial] (if (.endsWith chunk "\n")
-                                   [parts ""]
-                                   [(butlast parts) (last parts)])]
-          (doseq [line complete]
-            (>! lines line))
-          (recur partial))))
-    ;; TODO: Convert to lazy sequence. How do do that in
-    ;; Clojurescript? Is it even possible? Maybe we just go with
-    ;; channels, since they're universal.
-    ))
+    "Return a lazy sequence of lines from file."
+    [file]
+    (let [chunks (async/chan)
+          lines (async/chan)
+          reader (js/FileReader.)
+          chunk-size 1024]
+      (-> reader
+          .-onload
+          (set! #(go (->> % .-target .-result (>! chunks)))))
+      ;; Read chunks from file
+      (go-loop [offset 0]
+        ;; TODO
+        )
+      ;; Split chunks into lines
+      (go-loop [leftover ""]
+        (when-let [chunk (<! chunks)]
+          (let [parse (str/split-lines (str leftover chunk))
+                [complete partial] (if (.endsWith chunk "\n")
+                                     [parts ""]
+                                     [(butlast parts) (last parts)])]
+            (doseq [line complete]
+              (>! lines line))
+            (recur partial))))
+      ;; TODO: Convert to lazy sequence. How do do that in
+      ;; Clojurescript? Is it even possible? Maybe we just go with
+      ;; channels, since they're universal.
+      ))
 
 ;;; Serialization
 
@@ -232,9 +232,10 @@
    :south (units/nm->ft 0.4)
    :high (units/nm->ft 0.6)
    :low -500
-   :fast 3                            ; Degrees AOA
-   :slow 10                           ; Degrees AOA
-   :aoa-aspect 6.7
+   :fast 5.5                            ; Degrees AOA
+   :slow 10.5                           ; Degrees AOA
+   ;;:aoa-aspect 6.7
+   :aoa-aspect 3
    })
 
 (defn carrier-elevation
@@ -367,7 +368,7 @@ L30 1100")))
                          ::grading/downrange
                          ::grading/pilot]} data]
            :when (and aoa (pos? downrange))]
-       (svg/line
+       (svg/circle
         :attr {"t" t
                "aoa" aoa
                "path-a" (::grading/path-a data)
@@ -380,10 +381,26 @@ L30 1100")))
                                        ::grading/pilot
                                        ::acmi/pitch
                                        (* -1 pitch-exaggeration)))
-        :x1 -30
-        :x2 30
-        :y1 0
-        :y2 0)))))
+        :cx 0
+        :cy 0
+        :r 25)
+       #_(svg/line
+          :attr {"t" t
+                 "aoa" aoa
+                 "path-a" (::grading/path-a data)
+                 "pitch"  (-> data ::grading/pilot ::acmi/pitch)
+                 :class (name (classify params aoa))}
+          :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                     downrange
+                                     (* scale aoa)
+                                     (-> data
+                                         ::grading/pilot
+                                         ::acmi/pitch
+                                         (* -1 pitch-exaggeration)))
+          :x1 -30
+          :x2 30
+          :y1 0
+          :y2 0)))))
 
 (def elevation-exaggeration 4)
 
@@ -403,31 +420,31 @@ L30 1100")))
           :r 25))))))
 
 (let [angular-exaggeration 2
-      x1 (units/deg->rad 2)
+      x1 (units/deg->rad 3)
       x2 (units/deg->rad 10)]
- (defn exaggerate-angle
-   "Make small angles bigxbger."
-   ([rad]
-    (cond
-      (< (Math/abs rad) x1) (* angular-exaggeration rad)
-      (< (Math/abs rad) x2) (-> rad
-                                Math/abs
-                                (- x1)
-                                (/ angular-exaggeration)
-                                (+ (* angular-exaggeration x1))
-                                (* (/ rad (Math/abs rad))))
-      :else rad))
-   ([x y]
-    (let [r (Math/sqrt (+ (* x x) (* y y)))
-          ax (Math/abs x)
-          ay (Math/abs y)
-          theta (Math/atan2 ay ax)
-          theta' (exaggerate-angle theta)
-          x' (* r (Math/cos theta'))
-          y' (* r (Math/sin theta'))]
-      ;; Sign of coordinates should match original signs
-      [(* x' (/ x ax))
-       (* y' (/ y ay))]))))
+  (defn exaggerate-angle
+    "Make small angles bigxbger."
+    ([rad]
+     (cond
+       (< (Math/abs rad) x1) (* angular-exaggeration rad)
+       (< (Math/abs rad) x2) (-> rad
+                                 Math/abs
+                                 (- x1)
+                                 (/ angular-exaggeration)
+                                 (+ (* angular-exaggeration x1))
+                                 (* (/ rad (Math/abs rad))))
+       :else rad))
+    ([x y]
+     (let [r (Math/sqrt (+ (* x x) (* y y)))
+           ax (Math/abs x)
+           ay (Math/abs y)
+           theta (Math/atan2 ay ax)
+           theta' (exaggerate-angle theta)
+           x' (* r (Math/cos theta'))
+           y' (* r (Math/sin theta'))]
+       ;; Sign of coordinates should match original signs
+       [(* x' (/ x ax))
+        (* y' (/ y ay))]))))
 
 (defn plan-path
   [params pass]
@@ -460,7 +477,7 @@ L30 1100")))
      (svg/text
       :transform text-transform
       :attr {:class (str class " axis-label range")}
-      :x x
+      :x (+ x 20)
       :y 0
       (str x))]))
 
@@ -485,10 +502,13 @@ L30 1100")))
        (range-lines (* slow scale)
                     (* fast scale)
                     (gstring/format "scale(1 -1) translate(0 %f)"
-                                    (* -1 scale (+ fast 0.1))
-                                    #_(* (- aspect-ratio) (- slow fast)))
+                                    (* -1 scale (+ fast 0.1)))
                     "aoa")
-       (for [y (range (+ fast 1) slow 1)]
+       (for [[y label-class] [[6 ""]
+                              [(-> pass-parameters :aoa :major :low) "unacceptable"]
+                              [(-> pass-parameters :aoa :ideal) "ideal"]
+                              [(-> pass-parameters :aoa :major :high) "unacceptable"]
+                              [10 ""]]]
          [(svg/line
            :attr {:class "aoa guideline aoa-value"}
            :x1 west
@@ -497,24 +517,21 @@ L30 1100")))
            :y2 (* scale y))
           (svg/text
            :transform (gstring/format "scale(1 -1) translate(0 %f)"
-                                      (* -1 scale (+ y 0.05))
-                                      #_(* (- aspect-ratio) (- slow fast)))
-           :attr {:class "aoa axis-label aoa-value"}
+                                      (* -1 scale (+ y 0.05)))
+           :attr {:class (str "aoa axis-label aoa-value " label-class)}
            :x (+ west 50)
            :y 0
            (str y "°"))])
-       (formula-of
-        [pass-parameters]
-        (let [params (:aoa pass-parameters)]
-          (svg/g
-           (for [[k1 m] (select-keys params [:good :minor :major])
-                 [k2 v] (select-keys m [:low :high])]
-             (svg/line
+       (let [params (:aoa pass-parameters)]
+         (svg/g
+          (for [[k1 m] (select-keys params [:good :minor :major])
+                [k2 v] (select-keys m [:low :high])]
+            [(svg/line
               :attr {:class (str "aoa guideline aoa-value " (name k1) " " (name k2))}
-              :x1 0
+              :x1 west
               :y1 (* scale v)
               :x2 east
-              :y2 (* scale v))))))
+              :y2 (* scale v))])))
        (if-not selected-pass
          []
          (aoa-path scale selected-pass (:aoa pass-parameters))))))))
@@ -548,20 +565,50 @@ L30 1100")))
                     (gstring/format "scale(1 -1) translate(0 %f)"
                                     (- (+ low z)))
                     "elevation")
-       (for [angle (range 2.5 5 0.5)]
-         [(svg/line
-           :transform (gstring/format "rotate(%f)" (* angle elevation-exaggeration))
-           :attr {:class "elevation glideslope guideline"}
+       ;; White guidelines
+       #_(for [angle (range 2.0 5.1 0.5)]
+           [(svg/line
+             :transform (gstring/format "rotate(%f)" (* angle elevation-exaggeration))
+             :attr {:class "elevation glideslope guideline"}
+             :x1 0
+             :y1 0
+             :x2 (* 2 east)
+             :y2 0)
+            (svg/text
+             :transform (gstring/format "rotate(%f) scale(1 -1)" (* angle elevation-exaggeration))
+             :attr {:class "axis-label elevation glideslope"}
+             :x 8500
+             :y -20
+             (str angle "°"))])
+       ;; Colored guidelines
+       (let [params (:glideslope pass-parameters)]
+         (svg/g
+          (svg/line
+           :attr {:class (str "elevation guideline glideslope ideal")}
+           :transform (gstring/format "rotate(%f)"
+                                      (* (:ideal params) elevation-exaggeration))
            :x1 0
            :y1 0
            :x2 (* 2 east)
            :y2 0)
-          (svg/text
-           :transform (gstring/format "rotate(%f) scale(1 -1)" (* angle elevation-exaggeration))
-           :attr {:class "axis-label elevation glideslope"}
-           :x 8500
-           :y -20
-           (str angle "°"))])
+          (for [[k1 m] (select-keys params [:good :minor :major])
+                [k2 v] (select-keys m [:low :high])]
+            [(svg/line
+              :attr {:class (str "elevation guideline glideslope "
+                                 (name k1) " " (name k2))}
+              :transform (gstring/format "rotate(%f)"
+                                         (* v elevation-exaggeration))
+              :x1 0
+              :y1 0
+              :x2 (* 2 east)
+              :y2 0)
+             (svg/text
+              :transform (gstring/format "rotate(%f) scale(1 -1)" (* v elevation-exaggeration))
+              :attr {:class (str "axis-label elevation glideslope "
+                                 (name k1) " " (name k2))}
+              :x 8500
+              :y -20
+              (str v "°"))])))
        ;; Guidelines for 3/4 mile, 450 feet
        (svg/line
         :attr {:class "elevation guideline three-quarter-mile"}
@@ -620,7 +667,7 @@ L30 1100")))
       :y1 north
       :x2 (units/nm->ft 0.75)
       :y2 south)
-     (for [x (range -2 2.1 1)]
+     (for [x (range -3 3.1 1)]
        (let [xr (units/deg->rad x)
              angle (units/rad->deg (exaggerate-angle xr))]
          [(svg/line
@@ -630,7 +677,7 @@ L30 1100")))
            :y1 0
            :x2 (* east 2)
            :y2 0)]))
-     (for [x [-2 -1 0 1 2]]
+     (for [x [-3 -2 -1 0 1 2 3]]
        (let [xr (units/deg->rad x)
              angle (units/rad->deg (exaggerate-angle xr))]
          (svg/text
@@ -838,9 +885,11 @@ L30 1100")))
      (not acmi) (div "No ACMI file loaded")
      (empty? passes) (div "No passes detected in loaded ACMI")
      :else pass-selection-ui))
-  aoa
-  elevation
-  plan))
+  (div
+   :id "graphs"
+   aoa
+   elevation
+   plan)))
 
 (comment
   ;; This draw the table of passes. Might use it again
