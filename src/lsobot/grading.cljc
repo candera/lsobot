@@ -190,33 +190,14 @@
        ::pitch (::acmi/pitch e1)
        ::aoa (- (::acmi/pitch e1) path-a)})))
 
-(defn smooth-aoa
-  "Computes smoothed AoA"
-  [& data]
-  (/ (->> data
-          (map ::aoa)
-          (reduce +))
-     (count data)))
-
 (defn finalize-pass
   "Perform any processing that can only happen once we have the whole
   pass. Returns the augmented pass."
   [pilot-id pass]
-  (let [with-aoa (mapv (fn [[t0 d0 :as f0] [t1 d1 :as f1]]
-                         [t1 (merge d1 (aoa-data pilot-id f0 f1))])
-                       pass
-                       (drop 1 pass))
-        ;; Not working yet - want to wait until a refactor that gets
-        ;; away from frames as vectors
-        ;; smoothed-aoa (mapv (fn [frames]
-        ;;                      (let [[f0] frames
-        ;;                            [t0 d0] f0]
-        ;;                        [t0 (merge d0 (smooth-aoa (map second frames)))]))
-        ;;                    (partition 2 1 with-aoa))
-        ]
-    with-aoa
-    #_smoothed-aoa
-    ))
+  (mapv (fn [[t0 d0 :as f0] [t1 d1 :as f1]]
+          [t1 (merge d1 (aoa-data pilot-id f0 f1))])
+        pass
+        (drop 1 pass)))
 
 (defn find-passes
   [file carrier-id pilot-id params]

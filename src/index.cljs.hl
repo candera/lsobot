@@ -357,51 +357,90 @@ L30 1100")))
       (<= (:low major) v (:high major)) :major
       :else :unacceptable)))
 
+(def aoa-smoothing 0.9)
+
 (defn aoa-path
   "Returns SVG data that shows the AOA data"
   [scale pass params]
   (let [{:keys [frames]} pass]
     (svg/g
      :attr {:class "aoa-data"}
-     (for [[t data] frames
-           :let [{:keys [::grading/aoa
-                         ::grading/downrange
-                         ::grading/pilot]} data]
-           :when (and aoa (pos? downrange))]
-       (svg/circle
-        :attr {"t" t
-               "aoa" aoa
-               "path-a" (::grading/path-a data)
-               "pitch"  (-> data ::grading/pilot ::acmi/pitch)
-               :class (name (classify params aoa))}
-        :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                   downrange
-                                   (* scale aoa)
-                                   (-> data
-                                       ::grading/pilot
-                                       ::acmi/pitch
-                                       (* -1 pitch-exaggeration)))
-        :cx 0
-        :cy 0
-        :r 25)
-       ;; Lines instead of circles
-       #_(svg/line
-          :attr {"t" t
-                 "aoa" aoa
-                 "path-a" (::grading/path-a data)
-                 "pitch"  (-> data ::grading/pilot ::acmi/pitch)
-                 :class (name (classify params aoa))}
-          :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                     downrange
-                                     (* scale aoa)
-                                     (-> data
-                                         ::grading/pilot
-                                         ::acmi/pitch
-                                         (* -1 pitch-exaggeration)))
-          :x1 -30
-          :x2 30
-          :y1 0
-          :y2 0)))))
+     (let [frames* (->> frames
+                        (map second)
+                        #_(map #(select-keys % [::grading/aoa
+                                                ::grading/downrange
+                                                ::grading/pilot]))
+                        (reduce (fn [acc frame]
+                                  (let [[frames prior-aoa] acc
+                                        aoa (::grading/aoa frame)
+                                        prior-aoa (or prior-aoa aoa)
+                                        ;; Sometimes there's no AOA
+                                        ;; data for some reason
+                                        aoa* (if-not aoa
+                                               prior-aoa
+                                               (+ (* aoa-smoothing prior-aoa)
+                                                  (* (- 1 aoa-smoothing) aoa)))]
+                                    [(conj frames (assoc frame
+                                                         ::aoa aoa*
+                                                         ::prior-aoa prior-aoa))
+                                     aoa*]))
+                                [[] nil])
+                        first)]
+       (log/debug "aoa-path" :frames (type frames*) (count frames*))
+       (for [data frames*
+             :let [{:keys [::aoa
+                           ::prior-aoa
+                           ::grading/downrange
+                           ::grading/pilot]} data]
+             :when (and aoa (pos? downrange))]
+         [(let [aoa (::grading/aoa data)]
+            (svg/circle
+             :attr {:class "original"}
+             :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                        downrange
+                                        (* scale aoa)
+                                        (-> data
+                                            ::grading/pilot
+                                            ::acmi/pitch
+                                            (* -1 pitch-exaggeration)))
+             :cx 0
+             :cy 0
+             :r 25))
+          (svg/circle
+           :attr {"smoothed-aoa" aoa
+                  "original-aoa" (::grading/aoa data)
+                  "path-a" (::grading/path-a data)
+                  "pitch"  (-> data ::grading/pilot ::acmi/pitch)
+                  "prior-aoa" prior-aoa
+                  :class (str "smoothed " (name (classify params aoa)))}
+           :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                      downrange
+                                      (* scale aoa)
+                                      (-> data
+                                          ::grading/pilot
+                                          ::acmi/pitch
+                                          (* -1 pitch-exaggeration)))
+           :cx 0
+           :cy 0
+           :r 25)]
+         ;; Lines instead of circles
+         #_(svg/line
+            :attr {"t" t
+                   "aoa" aoa
+                   "path-a" (::grading/path-a data)
+                   "pitch"  (-> data ::grading/pilot ::acmi/pitch)
+                   :class (name (classify params aoa))}
+            :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                       downrange
+                                       (* scale aoa)
+                                       (-> data
+                                           ::grading/pilot
+                                           ::acmi/pitch
+                                           (* -1 pitch-exaggeration)))
+            :x1 -30
+            :x2 30
+            :y1 0
+            :y2 0))))))
 
 (def elevation-exaggeration 4)
 
