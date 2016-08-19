@@ -173,19 +173,24 @@ tr:nth-child(even) {
     opacity: 1.0;
 }
 
+.unacceptable {
+    stroke: red;
+    fill: red;
+}
+
 .good,.ideal {
     stroke: lime;
     fill: lime;
 }
 
 .minor {
-    stroke: orange;
-    fill: orange;
+    stroke: yellow;
+    fill: yellow;
 }
 
 .major {
-    stroke: red;
-    fill: red;
+    stroke: orange;
+    fill: orange;
 }
 
 .guideline.good {

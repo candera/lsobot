@@ -198,13 +198,14 @@
                            ;; Give the loading changes to take
                            (<! (async/timeout 100))
                            (let [contents (-> % .-target .-result)]
-                             (reset! acmi (acmi/read-acmi contents))
-                             (let [carrier-ids (log/spy (->>  @passes
-                                                              (map :carrier-id)
-                                                              distinct))]
-                               (when (= 1 (count carrier-ids))
-                                 (change-carrier (first carrier-ids))))
-                             (reset! loading? false))))))
+                             (dosync
+                              (reset! acmi (acmi/read-acmi contents))
+                              (let [carrier-ids (log/spy (->>  @passes
+                                                               (map :carrier-id)
+                                                               distinct))]
+                                (when (= 1 (count carrier-ids))
+                                  (change-carrier (first carrier-ids))))
+                              (reset! loading? false)))))))
             (.readAsText reader file)))))))
 
 
