@@ -95,18 +95,12 @@ tr:nth-child(even) {
 }
 
 #elevation,#plan,#aoa {
-    background: #010144;
+    background: #0d0d27;
     display: block;
     border: solid 1px black;
     margin-top: 7px;
     width: 100%;
     /* max-width: 1024px;*/
-}
-
-#aoa {
-    /* background: #010144; */
-    background: #111122;
-    /* height: 200px; */
 }
 
 .carrier {
@@ -136,7 +130,7 @@ tr:nth-child(even) {
 }
 
 .sky {
-    fill: #8db8de;
+    fill: #63839e;
 }
 
 .zero-dot {
@@ -154,18 +148,6 @@ tr:nth-child(even) {
     stroke-width: 5;
     stroke-dasharray: 50 50;
 }
-
-/* .aoa.range.guideline { */
-/*     stroke-width: 0.02; */
-/*     stroke-dasharray: 0.1 0.1; */
-/* } */
-
-.aoa.axis-label {
-}
-
-/* .aoa.aoa-value.guideline { */
-/*     stroke-width: 0.02; */
-/* } */
 
 .aoa-data {
     stroke: white;
@@ -219,22 +201,50 @@ tr:nth-child(even) {
 }
 
 .axis-label {
-    fill: white;
     stroke: white;
+    fill: white;
     opacity: 0.7;
     stroke-width: 5;
     font-size: 150px;
 }
 
-.axis-label.unacceptable {
+.axis-label.good {
+    stroke: lime;
+    fill: lime;
+}
+
+.axis-label.minor {
+    stroke: orange;
+    fill: orange;
+}
+
+.axis-label.major {
     stroke: red;
     fill: red;
 }
 
-.axis-label.ideal {
-    stroke: lime;
-    fill: lime;
+
+.aoa.axis-label.good,
+.aoa.axis-label.minor,
+.glideslope.axis-label.ideal
+{
+    display: none;
 }
+
+/* .aoa.axis-label.major { */
+/*     fill: red; */
+/*     stroke: red; */
+/* } */
+
+/* .axis-label.unacceptable { */
+/*     stroke: red; */
+/*     fill: red; */
+/* } */
+
+/* .axis-label.ideal { */
+/*     stroke: white; */
+/*     fill: white; */
+/* } */
 
 #pass-selection-section label {
     margin-right: 3px;

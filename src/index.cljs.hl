@@ -384,6 +384,7 @@ L30 1100")))
         :cx 0
         :cy 0
         :r 25)
+       ;; Lines instead of circles
        #_(svg/line
           :attr {"t" t
                  "aoa" aoa
@@ -420,7 +421,7 @@ L30 1100")))
           :r 25))))))
 
 (let [angular-exaggeration 2
-      x1 (units/deg->rad 3)
+      x1 (units/deg->rad 4)
       x2 (units/deg->rad 10)]
   (defn exaggerate-angle
     "Make small angles bigxbger."
@@ -504,34 +505,29 @@ L30 1100")))
                     (gstring/format "scale(1 -1) translate(0 %f)"
                                     (* -1 scale (+ fast 0.1)))
                     "aoa")
-       (for [[y label-class] [[6 ""]
-                              [(-> pass-parameters :aoa :major :low) "unacceptable"]
-                              [(-> pass-parameters :aoa :ideal) "ideal"]
-                              [(-> pass-parameters :aoa :major :high) "unacceptable"]
-                              [10 ""]]]
-         [(svg/line
-           :attr {:class "aoa guideline aoa-value"}
-           :x1 west
-           :y1 (* scale y)
-           :x2 east
-           :y2 (* scale y))
-          (svg/text
-           :transform (gstring/format "scale(1 -1) translate(0 %f)"
-                                      (* -1 scale (+ y 0.05)))
-           :attr {:class (str "aoa axis-label aoa-value " label-class)}
-           :x (+ west 50)
-           :y 0
-           (str y "°"))])
-       (let [params (:aoa pass-parameters)]
+       (let [params (:aoa pass-parameters)
+             guideline (fn [v class]
+                         [(svg/line
+                           :attr {:class (str "aoa guideline aoa-value " class)}
+                           :x1 west
+                           :y1 (* scale v)
+                           :x2 east
+                           :y2 (* scale v))
+                          (svg/text
+                           :transform (gstring/format "scale(1 -1) translate(0 %f)"
+                                                      (* -1 scale (+ v 0.05)))
+                           :attr {:class (str "aoa axis-label aoa-value " class)}
+                           :x (+ west 50)
+                           :y 0
+                           (str v "°"))])]
          (svg/g
+          (guideline (:ideal params) "ideal")
+          (for [y [6 10]]
+            (guideline y ""))
           (for [[k1 m] (select-keys params [:good :minor :major])
-                [k2 v] (select-keys m [:low :high])]
-            [(svg/line
-              :attr {:class (str "aoa guideline aoa-value " (name k1) " " (name k2))}
-              :x1 west
-              :y1 (* scale v)
-              :x2 east
-              :y2 (* scale v))])))
+                [k2 v] (select-keys m [:low :high])
+                :let [class (str (name k1) " " (name k2))] ]
+            (guideline v class))))
        (if-not selected-pass
          []
          (aoa-path scale selected-pass (:aoa pass-parameters))))))))
@@ -580,35 +576,32 @@ L30 1100")))
              :x 8500
              :y -20
              (str angle "°"))])
-       ;; Colored guidelines
-       (let [params (:glideslope pass-parameters)]
+
+       ;; Colored glideslope guidelines
+       (let [params (:glideslope pass-parameters)
+             guideline (fn [angle class]
+                         [(svg/line
+                           :attr {:class (str "elevation guideline glideslope "
+                                              class)}
+                           :transform (gstring/format "rotate(%f)"
+                                                      (* angle elevation-exaggeration))
+                           :x1 0
+                           :y1 0
+                           :x2 (* 2 east)
+                           :y2 0)
+                          (svg/text
+                           :transform (gstring/format "rotate(%f) scale(1 -1)"
+                                                      (* angle elevation-exaggeration))
+                           :attr {:class (str "axis-label elevation glideslope " class)}
+                           :x 8500
+                           :y -20
+                           (str angle "°"))])]
          (svg/g
-          (svg/line
-           :attr {:class (str "elevation guideline glideslope ideal")}
-           :transform (gstring/format "rotate(%f)"
-                                      (* (:ideal params) elevation-exaggeration))
-           :x1 0
-           :y1 0
-           :x2 (* 2 east)
-           :y2 0)
+          (guideline (:ideal params) "ideal")
           (for [[k1 m] (select-keys params [:good :minor :major])
-                [k2 v] (select-keys m [:low :high])]
-            [(svg/line
-              :attr {:class (str "elevation guideline glideslope "
-                                 (name k1) " " (name k2))}
-              :transform (gstring/format "rotate(%f)"
-                                         (* v elevation-exaggeration))
-              :x1 0
-              :y1 0
-              :x2 (* 2 east)
-              :y2 0)
-             (svg/text
-              :transform (gstring/format "rotate(%f) scale(1 -1)" (* v elevation-exaggeration))
-              :attr {:class (str "axis-label elevation glideslope "
-                                 (name k1) " " (name k2))}
-              :x 8500
-              :y -20
-              (str v "°"))])))
+                [k2 v] (select-keys m [:low :high])
+                :let [class (str (name k1) " " (name k2))]]
+            (guideline v class))))
        ;; Guidelines for 3/4 mile, 450 feet
        (svg/line
         :attr {:class "elevation guideline three-quarter-mile"}
@@ -667,25 +660,28 @@ L30 1100")))
       :y1 north
       :x2 (units/nm->ft 0.75)
       :y2 south)
-     (for [x (range -3 3.1 1)]
-       (let [xr (units/deg->rad x)
-             angle (units/rad->deg (exaggerate-angle xr))]
-         [(svg/line
-           :transform (gstring/format "rotate(%f)" angle)
-           :attr {:class "plan angle guideline"}
-           :x1 0
-           :y1 0
-           :x2 (* east 2)
-           :y2 0)]))
-     (for [x [-3 -2 -1 0 1 2 3]]
-       (let [xr (units/deg->rad x)
-             angle (units/rad->deg (exaggerate-angle xr))]
-         (svg/text
-          :transform (gstring/format "rotate(%f)" angle)
-          :attr {:class "axis-label plan angle"}
-          :x 8000
-          :y -20
-          (str (.toFixed x 1) "°"))))
+     (formula-of
+      [pass-parameters]
+      (svg/g
+       (let [params (:lineup pass-parameters)]
+        (for [[k1 m] (select-keys params [:good :minor :major])
+              [k2 v] (select-keys m [:low :high])]
+          (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)]
+            [(svg/line
+              :transform (gstring/format "rotate(%f)" angle)
+              :attr {:class (str "plan angle guideline "
+                                 (name k1) " " (name k2))}
+              :x1 0
+              :y1 0
+              :x2 (* east 2)
+              :y2 0)
+             (svg/text
+              :transform (gstring/format "rotate(%f)" angle)
+              :attr {:class (str "axis-label plan angle "
+                                 (name k1) " " (name k2))}
+              :x 8000
+              :y -20
+              (str (.toFixed v 1) "°"))])))))
      (svg/g
       ;; We need to invert the y axis because of the way the coordinate
       ;; systems interact: in landing space, crosstrack error increases
