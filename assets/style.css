@@ -226,7 +226,9 @@ tr:nth-child(even) {
 
 .aoa.axis-label.good,
 .aoa.axis-label.minor,
-.glideslope.axis-label.ideal
+.glideslope.axis-label.good,
+.glideslope.axis-label.minor,
+.angle.axis-label.minor
 {
     display: none;
 }

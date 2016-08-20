@@ -111,7 +111,7 @@
 
 (defn characterize-frame
   [carrier-id pilot-id params frame]
-  (let [[t {:keys [::acmi/entities] :as frame-data}] frame
+  (let [{:keys [::acmi/t ::acmi/entities]} frame
         carrier      (get entities carrier-id)
         pilot        (get entities pilot-id)
 
@@ -151,14 +151,14 @@
                                        units/nm->ft))
                               (< (Math/abs c)
                                  (:max-angle params)))
-            pass-frame   [t (merge frame-data
-                                   {::downrange        downrange
-                                    ::crosstrack-error crosstrack-error
-                                    ::glideslope       (units/rad->deg (Math/atan2 height distance))
-                                    ::height           height
-                                    ::slope            s
-                                    ::distance         d
-                                    ::course-deviation c})]]
+            pass-frame   (merge frame
+                                {::downrange        downrange
+                                 ::crosstrack-error crosstrack-error
+                                 ::glideslope       (units/rad->deg (Math/atan2 height distance))
+                                 ::height           height
+                                 ::slope            s
+                                 ::distance         d
+                                 ::course-deviation c})]
         (into (sorted-map)
               {:landing-loc landing-loc
                :carrier-loc carrier-loc
@@ -194,8 +194,8 @@
   "Perform any processing that can only happen once we have the whole
   pass. Returns the augmented pass."
   [pilot-id pass]
-  (mapv (fn [[t0 d0 :as f0] [t1 d1 :as f1]]
-          [t1 (merge d1 (aoa-data pilot-id f0 f1))])
+  (mapv (fn [f0 f1]
+          (merge f1 (aoa-data pilot-id f0 f1)))
         pass
         (drop 1 pass)))
 
@@ -208,7 +208,7 @@
          passes []]
     (if-not frame
       passes
-      (let [[t] frame
+      (let [t (::acmi/t frame)
             {:keys [distance approaching? pass-frame]}
             (characterize-frame carrier-id pilot-id params frame)]
         (cond
@@ -238,8 +238,8 @@
             ;; Yes - record the pass
             (let [pass-frames* (conj pass-frames pass-frame)
                   [coda remainder] (split-with
-                                    (fn [[t*]]
-                                      (< t* (+ t (:coda params))))
+                                    (fn [frame]
+                                      (< (::acmi/t frame) (+ t (:coda params))))
                                     frames)
                   coda-frames (->> coda
                                    (map #(characterize-frame carrier-id
@@ -265,8 +265,7 @@
 (s/def ::slope float?)
 (s/def ::distance float?)
 (s/def ::course-deviation float?)
-(def pass-data (s/keys :req [::slope ::distance ::course-deviation ::acmi/entities]))
-(def pass-frame (s/cat :time float? :data pass-data))
+(def pass-frame (s/keys :req [::slope ::distance ::course-deviation ::acmi/entities]))
 
 (s/fdef passes
         :args acmi/file

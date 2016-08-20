@@ -1,6 +1,7 @@
 (page "index.html"
   (:require [clojure.string :as str]
             [goog.dom :as gdom]
+            [goog.events :as gevents]
             [goog.string :as gstring]
             [goog.string.format]
             [goog.style :as gstyle]
@@ -14,6 +15,7 @@
              :refer-macros (log trace debug info warn error fatal report
                                 logf tracef debugf infof warnf errorf fatalf reportf
                                 spy get-env log-env)])
+  (:import [goog.events EventType])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]
    [lsobot.macros :refer [formula-of defformula]]))
@@ -39,7 +41,7 @@
               pass-frames passes]
           {:frames     pass-frames
            :carrier-id carrier-id
-           :start      (-> pass-frames first first)
+           :start      (-> pass-frames first ::acmi/t)
            :pilot-id   pilot-id})
         (map-indexed (fn [index m]
                        (assoc m :index index)))))
@@ -58,17 +60,12 @@
 
 (defformula selected-pass
   [selected-pass-descriptor passes]
-  (log/debug "selected-pass"
-             :selected-pass-descriptor selected-pass-descriptor)
   (let [{:keys [index]} selected-pass-descriptor]
     (when index
       (nth passes (long index)))))
 
 (defn change-pass
   [index]
-  (log/debug "change-pass"
-             :index index
-             :index-type (type index))
   (swap! selected-pass-descriptor
          assoc
          :index
@@ -76,7 +73,6 @@
 
 (defn change-pilot
   [pilot-id]
-  (log/debug "change-pilot" :pilot-id pilot-id)
   (let [indexes (->> @passes
                      (filter #(= (:carrier-id @selected-pass-descriptor)
                                  (:carrier-id %)))
@@ -88,13 +84,11 @@
            pilot-id
            :index
            nil)
-    (log/debug "change-pilot" :indexes indexes)
     (when (= 1 (count indexes))
       (change-pass (first indexes)))))
 
 (defn change-carrier
   [carrier-id]
-  (log/debug "change-carrier" :carrier-id carrier-id)
   (let [pilot-ids (->> @passes
                        (filter #(= carrier-id (:carrier-id %)))
                        (map :pilot-id)
@@ -142,36 +136,7 @@
 
 (defn property
   [acmi id prop]
-  (-> acmi ::acmi/frames last second ::acmi/entities (get-in [id prop])))
-
-#_(defn line-seq
-    "Return a lazy sequence of lines from file."
-    [file]
-    (let [chunks (async/chan)
-          lines (async/chan)
-          reader (js/FileReader.)
-          chunk-size 1024]
-      (-> reader
-          .-onload
-          (set! #(go (->> % .-target .-result (>! chunks)))))
-      ;; Read chunks from file
-      (go-loop [offset 0]
-        ;; TODO
-        )
-      ;; Split chunks into lines
-      (go-loop [leftover ""]
-        (when-let [chunk (<! chunks)]
-          (let [parse (str/split-lines (str leftover chunk))
-                [complete partial] (if (.endsWith chunk "\n")
-                                     [parts ""]
-                                     [(butlast parts) (last parts)])]
-            (doseq [line complete]
-              (>! lines line))
-            (recur partial))))
-      ;; TODO: Convert to lazy sequence. How do do that in
-      ;; Clojurescript? Is it even possible? Maybe we just go with
-      ;; channels, since they're universal.
-      ))
+  (-> acmi ::acmi/frames last ::acmi/entities (get-in [id prop])))
 
 ;;; Serialization
 
@@ -200,42 +165,39 @@
                            (let [contents (-> % .-target .-result)]
                              (dosync
                               (reset! acmi (acmi/read-acmi contents))
-                              (let [carrier-ids (log/spy (->>  @passes
-                                                               (map :carrier-id)
-                                                               distinct))]
+                              (let [carrier-ids (->>  @passes
+                                                      (map :carrier-id)
+                                                      distinct)]
                                 (when (= 1 (count carrier-ids))
                                   (change-carrier (first carrier-ids))))
                               (reset! loading? false)))))))
             (.readAsText reader file)))))))
 
-
 ;;; UI
 
 (defmethod do! :viewBox
   [elem _ value]
-  (log/debug "viewBox" :value value)
   (if (= false value)
     (.removeAttribute elem "viewBox")
     (.setAttribute elem "viewBox" value)))
 
 (defmethod do! :preserveAspectRatio
   [elem _ value]
-  (log/debug "preserveAspectRatio" :value value)
   (if (= false value)
     (.removeAttribute elem "preserveAspectRatio")
     (.setAttribute elem "preserveAspectRatio" value)))
 
 (def view-bounds
   {:west -1500
-   :east (units/nm->ft 1.45)
-   :north (units/nm->ft -0.4)
-   :south (units/nm->ft 0.4)
-   :high (units/nm->ft 0.6)
+   :east 7000
+   :north (units/nm->ft -0.25)
+   :south (units/nm->ft 0.25)
+   :high (units/nm->ft 0.5)
    :low -500
    :fast 5.5                            ; Degrees AOA
    :slow 10.5                           ; Degrees AOA
    ;;:aoa-aspect 6.7
-   :aoa-aspect 3
+   :aoa-aspect 4
    })
 
 (defn carrier-elevation
@@ -361,103 +323,102 @@ L30 1100")))
 
 (defn aoa-path
   "Returns SVG data that shows the AOA data"
-  [scale pass params]
-  (let [{:keys [frames]} pass]
-    (svg/g
-     :attr {:class "aoa-data"}
-     (let [frames* (->> frames
-                        (map second)
-                        #_(map #(select-keys % [::grading/aoa
-                                                ::grading/downrange
-                                                ::grading/pilot]))
-                        (reduce (fn [acc frame]
-                                  (let [[frames prior-aoa] acc
-                                        aoa (::grading/aoa frame)
-                                        prior-aoa (or prior-aoa aoa)
-                                        ;; Sometimes there's no AOA
-                                        ;; data for some reason
-                                        aoa* (if-not aoa
-                                               prior-aoa
-                                               (+ (* aoa-smoothing prior-aoa)
-                                                  (* (- 1 aoa-smoothing) aoa)))]
-                                    [(conj frames (assoc frame
-                                                         ::aoa aoa*
-                                                         ::prior-aoa prior-aoa))
-                                     aoa*]))
-                                [[] nil])
-                        first)]
-       (log/debug "aoa-path" :frames (type frames*) (count frames*))
-       (for [data frames*
-             :let [{:keys [::aoa
-                           ::prior-aoa
-                           ::grading/downrange
-                           ::grading/pilot]} data]
-             :when (and aoa (pos? downrange))]
-         [(let [aoa (::grading/aoa data)]
-            (svg/circle
-             :attr {:class "original"}
-             :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                        downrange
-                                        (* scale aoa)
-                                        (-> data
-                                            ::grading/pilot
-                                            ::acmi/pitch
-                                            (* -1 pitch-exaggeration)))
-             :cx 0
-             :cy 0
-             :r 25))
+  [params scale pass]
+  (log/debug "aoa-path"
+             :map? (map? pass)
+             :vector? (vector? pass)
+             :first-map? (-> pass first map?))
+  (svg/g
+   :attr {:class "aoa-data"}
+   (let [[frames _] (->> pass
+                         :frames
+                         (reduce (fn [acc frame]
+                                   (let [[frames prior-aoa] acc
+                                         aoa (::grading/aoa frame)
+                                         prior-aoa (or prior-aoa aoa)
+                                         ;; Sometimes there's no AOA
+                                         ;; data for some reason
+                                         aoa* (if-not aoa
+                                                prior-aoa
+                                                (+ (* aoa-smoothing prior-aoa)
+                                                   (* (- 1 aoa-smoothing) aoa)))]
+                                     [(conj frames (assoc frame
+                                                          ::aoa aoa*
+                                                          ::prior-aoa prior-aoa))
+                                      aoa*]))
+                                 [[] nil]))]
+     (for [frame frames
+           :let [{:keys [::aoa
+                         ::prior-aoa
+                         ::grading/downrange
+                         ::grading/pilot]} frame]
+           :when (and aoa (pos? downrange))]
+       [(let [aoa (::grading/aoa data)]
           (svg/circle
-           :attr {"smoothed-aoa" aoa
-                  "original-aoa" (::grading/aoa data)
-                  "path-a" (::grading/path-a data)
-                  "pitch"  (-> data ::grading/pilot ::acmi/pitch)
-                  "prior-aoa" prior-aoa
-                  :class (str "smoothed " (name (classify params aoa)))}
+           :attr {:class "original"}
            :transform (gstring/format "translate(%f %f) rotate(%f)"
                                       downrange
                                       (* scale aoa)
-                                      (-> data
+                                      (-> frame
                                           ::grading/pilot
                                           ::acmi/pitch
                                           (* -1 pitch-exaggeration)))
            :cx 0
            :cy 0
-           :r 25)]
-         ;; Lines instead of circles
-         #_(svg/line
-            :attr {"t" t
-                   "aoa" aoa
-                   "path-a" (::grading/path-a data)
-                   "pitch"  (-> data ::grading/pilot ::acmi/pitch)
-                   :class (name (classify params aoa))}
-            :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                       downrange
-                                       (* scale aoa)
-                                       (-> data
-                                           ::grading/pilot
-                                           ::acmi/pitch
-                                           (* -1 pitch-exaggeration)))
-            :x1 -30
-            :x2 30
-            :y1 0
-            :y2 0))))))
+           :r 25))
+        (svg/circle
+         :attr {"smoothed-aoa" aoa
+                "original-aoa" (::grading/aoa frame)
+                "path-a" (::grading/path-a frame)
+                "pitch"  (-> frame ::grading/pilot ::acmi/pitch)
+                "prior-aoa" prior-aoa
+                :class (str "smoothed " (name (classify params aoa)))}
+         :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                    downrange
+                                    (* scale aoa)
+                                    (-> frame
+                                        ::grading/pilot
+                                        ::acmi/pitch
+                                        (* -1 pitch-exaggeration)))
+         :cx 0
+         :cy 0
+         :r 25)]
+       ;; Lines instead of circles
+       #_(svg/line
+          :attr {"t" t
+                 "aoa" aoa
+                 "path-a" (::grading/path-a data)
+                 "pitch"  (-> data ::grading/pilot ::acmi/pitch)
+                 :class (name (classify params aoa))}
+          :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                     downrange
+                                     (* scale aoa)
+                                     (-> data
+                                         ::grading/pilot
+                                         ::acmi/pitch
+                                         (* -1 pitch-exaggeration)))
+          :x1 -30
+          :x2 30
+          :y1 0
+          :y2 0)))))
 
 (def elevation-exaggeration 4)
 
 (defn elevation-path
   [params pass]
-  (let [{:keys [frames]} pass]
-    (svg/g
-     :attr {:class "approach-path"}
-     (for [[t data] frames]
-       (let [{:keys [::grading/downrange
-                     ::grading/height
-                     ::grading/glideslope]} data]
-         (svg/circle
-          :attr {:class (name (classify params glideslope))}
-          :cx downrange
-          :cy (* elevation-exaggeration height)
-          :r 25))))))
+  (svg/g
+   :attr {:class "approach-path"}
+   (for [frame (:frames pass)]
+     (let [{:keys [::grading/downrange
+                   ::grading/height
+                   ::grading/glideslope]} frame]
+       (svg/circle
+        :attr {:class (if (pos? downrange)
+                        (name (classify params glideslope))
+                        "")}
+        :cx downrange
+        :cy (* elevation-exaggeration height)
+        :r 25)))))
 
 (let [angular-exaggeration 2
       x1 (units/deg->rad 4)
@@ -488,21 +449,22 @@ L30 1100")))
 
 (defn plan-path
   [params pass]
-  (let [{:keys [frames]} pass]
-    (svg/g
-     :attr {:class "approach-path"}
+  (svg/g
+   :attr {:class "approach-path"}
 
-     (for [[t data] frames]
-       (let [{:keys [::grading/downrange
-                     ::grading/crosstrack-error
-                     ::grading/course-deviation]} data
-             [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
-         ;; TODO: Exaggerate the angle to make errors more obvious
-         (svg/circle
-          :attr {:class (name (classify params course-deviation))}
-          :cx (if (pos? downrange) downrange* downrange)
-          :cy (if (pos? downrange) crosstrack* crosstrack-error)
-          :r 25))))))
+   (for [frame (:frames pass)]
+     (let [{:keys [::grading/downrange
+                   ::grading/crosstrack-error
+                   ::grading/course-deviation]} frame
+           [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
+       ;; TODO: Exaggerate the angle to make errors more obvious
+       (svg/circle
+        :attr {:class (if (pos? downrange)
+                        (name (classify params course-deviation))
+                        "")}
+        :cx (if (pos? downrange) downrange* downrange)
+        :cy (if (pos? downrange) crosstrack* crosstrack-error)
+        :r 25)))))
 
 (defn range-lines
   "Draw the lines that show range, with their labels."
@@ -526,7 +488,6 @@ L30 1100")))
    [selected-pass pass-parameters]
    (let [{:keys [west east fast slow aoa-aspect]} view-bounds
          scale (/ (- east west) (- slow fast) aoa-aspect)]
-     (log/debug "aoa" :scale scale)
      (svg/svg
       :attr {"xmlns" "http://www.w3.org/2000/svg"}
       ;;:preserveAspectRatio "none"
@@ -569,7 +530,7 @@ L30 1100")))
             (guideline v class))))
        (if-not selected-pass
          []
-         (aoa-path scale selected-pass (:aoa pass-parameters))))))))
+         (aoa-path (:aoa pass-parameters) scale selected-pass)))))))
 
 (def elevation
   "Draws the side view of the pass."
@@ -600,22 +561,6 @@ L30 1100")))
                     (gstring/format "scale(1 -1) translate(0 %f)"
                                     (- (+ low z)))
                     "elevation")
-       ;; White guidelines
-       #_(for [angle (range 2.0 5.1 0.5)]
-           [(svg/line
-             :transform (gstring/format "rotate(%f)" (* angle elevation-exaggeration))
-             :attr {:class "elevation glideslope guideline"}
-             :x1 0
-             :y1 0
-             :x2 (* 2 east)
-             :y2 0)
-            (svg/text
-             :transform (gstring/format "rotate(%f) scale(1 -1)" (* angle elevation-exaggeration))
-             :attr {:class "axis-label elevation glideslope"}
-             :x 8500
-             :y -20
-             (str angle "°"))])
-
        ;; Colored glideslope guidelines
        (let [params (:glideslope pass-parameters)
              guideline (fn [angle class]
@@ -632,7 +577,7 @@ L30 1100")))
                            :transform (gstring/format "rotate(%f) scale(1 -1)"
                                                       (* angle elevation-exaggeration))
                            :attr {:class (str "axis-label elevation glideslope " class)}
-                           :x 8500
+                           :x (- east 500)
                            :y -20
                            (str angle "°"))])]
          (svg/g
@@ -718,7 +663,7 @@ L30 1100")))
               :transform (gstring/format "rotate(%f)" angle)
               :attr {:class (str "axis-label plan angle "
                                  (name k1) " " (name k2))}
-              :x 8000
+              :x (- east 500)
               :y -20
               (str (.toFixed v 1) "°"))])))))
      (svg/g
@@ -792,10 +737,6 @@ L30 1100")))
   [(label :for "pass-select" "Pass starting at:")
    (formula-of
     [acmi passes selected-pass-descriptor]
-    (log/debug "pass-select-ui"
-               :selected-pass-descriptor selected-pass-descriptor
-               ;;:passes passes
-               )
     (select
      :id "pass-select"
      :change #(change-pass (js/Number. @%))
@@ -892,8 +833,8 @@ L30 1100")))
 
 (defn keypress
   [e]
-  (log/debug "Key pressed" :which (.-which e))
-  (when-let [action (some-> e .-which keymap key-action)]
+  (log/debug "Key pressed" :keycode (.-keyCode e))
+  (when-let [action (some-> e .-keyCode keymap key-action)]
     (action)))
 
 (html
@@ -904,7 +845,8 @@ L30 1100")))
         :rel "stylesheet"
         :type "text/css"))
  (body
-  :keypress keypress
+  :id "body"
+  ;;:keypress keypress
   titlebar
   (if-tpl loading?
     [(div
@@ -925,6 +867,12 @@ L30 1100")))
    aoa
    elevation
    plan)))
+
+;; Keypresses handler was getting registered more than once when the
+;; code would reload, which is super annoying.
+(let [body (gdom/getElement "body")]
+  (gevents/removeAll body EventType.KEYPRESS)
+  (gevents/listen body EventType.KEYPRESS keypress))
 
 (comment
   ;; This draw the table of passes. Might use it again

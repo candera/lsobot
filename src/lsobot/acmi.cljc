@@ -34,7 +34,7 @@
                          s))))
 (s/def ::id id)
 (s/def ::ids (s/* id))
-(s/def ::time float?)
+(s/def ::t float?)
 (s/def ::text string?)
 
 (s/def ::removed? boolean?)
@@ -145,9 +145,7 @@
 
 (s/def ::entities entity-info)
 
-(def frame-data (s/keys :opt [::events ::entities]))
-
-(def frame (s/spec (s/cat :time float? :frame-data frame-data)))
+(def frame (s/keys :req [::t] :opt [::events ::entities]))
 
 (s/def ::frames (s/* frame))
 
@@ -323,8 +321,9 @@
            frames              []]
       (log :t t :frames (count frames))
       (if-not line
-        {::frames (conj frames [t {::events   events
-                                   ::entities entities}])}
+        {::frames (conj frames {::t t
+                                ::events   events
+                                ::entities entities})}
         (let [[type line-info] (parse-line line)]
           (log :line line :line-info (pr-str line-info))
           (case type
@@ -337,8 +336,9 @@
                               entities
                               []
                               line-info
-                              (conj frames [t {::events events
-                                               ::entities entities}]))
+                              (conj frames {::t t
+                                            ::events events
+                                            ::entities entities}))
             :entity-info (recur more-lines
                                 (merge-with merge entities line-info)
                                 events
@@ -367,7 +367,7 @@
     (loop [low 0
            high (dec (count frames))]
       (let [idx (-> low (+ high) (/ 2) int)
-            [t0] (nth frames idx)]
+            t0 (::t (nth frames idx))]
         (cond
           (= t0 t) idx
           (= low (dec high)) (inc idx)
@@ -382,7 +382,7 @@
 (defn entities
   "Returns the entities of a frame"
   [frame]
-  (-> frame second ::entities))
+  (-> frame ::entities))
 
 (defn entity
   "Returns an entity from a frame"
@@ -393,4 +393,4 @@
   "Return entity `id` from closest frame at or after specified time."
   [file id t]
   (let [frame (frame-at file t)]
-    (-> frame second ::entities (get id))))
+    (-> frame ::entities (get id))))
