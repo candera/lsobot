@@ -40,7 +40,7 @@
    :recovery-skew 11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda          5      ; Seconds of data to keep after approach ends
-   :landing-point [-18 -313 74] ; x,y,z position in carrier coordinates
+   :landing-point [-15 -313 74] ; x,y,z position in carrier coordinates
                                         ; zero where landing
                                         ; should aim. Feet.
    :glideslope    {:ideal 3.3
