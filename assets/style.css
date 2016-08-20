@@ -162,6 +162,8 @@ tr:nth-child(even) {
 
 .ideal {
     stroke: white;
+    fill: lime;
+    stroke-width: 5;
 }
 
 .good {

@@ -413,7 +413,8 @@ L30 1100")))
                    ::grading/height
                    ::grading/glideslope]} frame]
        (svg/circle
-        :attr {:class (if (pos? downrange)
+        :attr {"glideslope" glideslope
+               :class (if (pos? downrange)
                         (name (classify params glideslope))
                         "")}
         :cx downrange
@@ -455,12 +456,15 @@ L30 1100")))
    (for [frame (:frames pass)]
      (let [{:keys [::grading/downrange
                    ::grading/crosstrack-error
-                   ::grading/course-deviation]} frame
+                   ::grading/course-deviation
+                   ::grading/lineup]} frame
            [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
        ;; TODO: Exaggerate the angle to make errors more obvious
        (svg/circle
-        :attr {:class (if (pos? downrange)
-                        (name (classify params course-deviation))
+        :attr {"lineup" lineup
+               "course-dev" course-deviation
+               :class (if (pos? downrange)
+                        (name (classify params lineup))
                         "")}
         :cx (if (pos? downrange) downrange* downrange)
         :cy (if (pos? downrange) crosstrack* crosstrack-error)
@@ -563,29 +567,37 @@ L30 1100")))
                     "elevation")
        ;; Colored glideslope guidelines
        (let [params (:glideslope pass-parameters)
-             guideline (fn [angle class]
+             guideline (fn [angle class tx]
                          [(svg/line
                            :attr {:class (str "elevation guideline glideslope "
                                               class)}
-                           :transform (gstring/format "rotate(%f)"
+                           :transform (gstring/format "translate(%f 0) rotate(%f)"
+                                                      tx
                                                       (* angle elevation-exaggeration))
                            :x1 0
                            :y1 0
                            :x2 (* 2 east)
                            :y2 0)
                           (svg/text
-                           :transform (gstring/format "rotate(%f) scale(1 -1)"
+                           :transform (gstring/format "translate(%f 0) rotate(%f) scale(1 -1)"
+                                                      tx
                                                       (* angle elevation-exaggeration))
                            :attr {:class (str "axis-label elevation glideslope " class)}
                            :x (- east 500)
                            :y -20
                            (str angle "°"))])]
          (svg/g
-          (guideline (:ideal params) "ideal")
+          (guideline (:ideal params) "ideal" 0)
           (for [[k1 m] (select-keys params [:good :minor :major])
                 [k2 v] (select-keys m [:low :high])
-                :let [class (str (name k1) " " (name k2))]]
-            (guideline v class))))
+                :let [class (str (name k1) " " (name k2))
+                      tx (-> pass-parameters
+                             :landing-window
+                             second
+                             (/ 2))]]
+            (guideline v class (if (= k2 :low)
+                                 tx
+                                 (- tx))))))
        ;; Guidelines for 3/4 mile, 450 feet
        (svg/line
         :attr {:class "elevation guideline three-quarter-mile"}
@@ -650,9 +662,16 @@ L30 1100")))
        (let [params (:lineup pass-parameters)]
         (for [[k1 m] (select-keys params [:good :minor :major])
               [k2 v] (select-keys m [:low :high])]
-          (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)]
+          (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)
+                ty (-> pass-parameters
+                       :landing-window
+                       first
+                       (/ 2)
+                       (* (if (= k2 :low)
+                            -1
+                            1)))]
             [(svg/line
-              :transform (gstring/format "rotate(%f)" angle)
+              :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
               :attr {:class (str "plan angle guideline "
                                  (name k1) " " (name k2))}
               :x1 0
@@ -660,7 +679,7 @@ L30 1100")))
               :x2 (* east 2)
               :y2 0)
              (svg/text
-              :transform (gstring/format "rotate(%f)" angle)
+              :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
               :attr {:class (str "axis-label plan angle "
                                  (name k1) " " (name k2))}
               :x (- east 500)

@@ -40,9 +40,16 @@
    :recovery-skew 11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda          5      ; Seconds of data to keep after approach ends
-   :landing-point [-15 -313 74] ; x,y,z position in carrier coordinates
-                                        ; zero where landing
+   :landing-point [-15 -313 74] ; x,y,z position in carrier
+                                ; coordinates zero where landing
                                         ; should aim. Feet.
+   :landing-window [50 150] ; width,length of the "window" around the
+                            ; landing point. This forms an imaginary
+                            ; box, inside of which everywhere is
+                            ; considered equivalent. Lining up on
+                            ; anywhere inside this box is considered
+                            ; equivalent to lining up on the landing
+                            ; point.
    :glideslope    {:ideal 3.3
                    :good  {:low  3.1
                            :high 3.5}
@@ -109,6 +116,38 @@
         (* x (Math/sin theta)))
      z]))
 
+(defn glideslope
+  "Compute the glideslope, taking the landing window into
+  consideration. Angles are in degrees."
+  [ideal window height distance]
+  (let [w (/ window 2)
+        d-far  (+ distance w)
+        d-near (- distance w)
+        g-ideal (units/deg->rad ideal)
+        g-near (Math/atan2 height d-near)
+        g-far (Math/atan2 height d-far)]
+    (units/rad->deg
+     (cond
+       (<= g-far g-ideal g-near) g-ideal
+       (< g-ideal g-far) g-far
+       :else g-near))))
+
+(defn lineup
+  "Compute the lineup error, taking the landing window
+  consideration. Angles are in degrees."
+  [ideal window crosstrack-error downrange]
+  (let [w (/ window 2)
+        c-right  (+ crosstrack-error w)
+        c-left (- crosstrack-error w)
+        l-ideal (units/deg->rad ideal)
+        l-left (Math/atan2 c-left downrange)
+        l-right (Math/atan2 c-right downrange)]
+    (units/rad->deg
+     (cond
+       (<= l-left l-ideal l-right) l-ideal
+       (< l-ideal l-left) l-left
+       :else l-right))))
+
 (defn characterize-frame
   [carrier-id pilot-id params frame]
   (let [{:keys [::acmi/t ::acmi/entities]} frame
@@ -130,6 +169,7 @@
                                (rotate-z (- carrier-hdg)
                                          (mapv units/ft->m (:landing-point params)))
                                carrier-loc)
+            [window-width window-length] (:landing-window params)
             ;; Now into landing space
             coords       (->> (mapv - pilot-loc landing-loc)
                               (rotate-z (- carrier-hdg (:recovery-skew params)))
@@ -154,7 +194,18 @@
             pass-frame   (merge frame
                                 {::downrange        downrange
                                  ::crosstrack-error crosstrack-error
-                                 ::glideslope       (units/rad->deg (Math/atan2 height distance))
+                                 ::lineup           (lineup (-> params
+                                                                :lineup
+                                                                :ideal)
+                                                            window-width
+                                                            crosstrack-error
+                                                            downrange)
+                                 ::glideslope       (glideslope (-> params
+                                                                    :glideslope
+                                                                    :ideal)
+                                                                window-length
+                                                                height
+                                                                distance)
                                  ::height           height
                                  ::slope            s
                                  ::distance         d
