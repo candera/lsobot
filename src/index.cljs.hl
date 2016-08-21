@@ -780,9 +780,9 @@ L30 1100")))
   (fieldset
    :id "pass-selection-section"
    (legend "Pass selection")
-   carrier-select-ui
-   pilot-select-ui
-   pass-select-ui)
+   (div carrier-select-ui)
+   (div pilot-select-ui)
+   (div pass-select-ui))
 
   ;; TODO: Move this to the bottom as a summary
   #_[(table
@@ -826,6 +826,14 @@ L30 1100")))
           (img :id "winglogo"
                :src "images/1stVFW_Insignia-64.png"))))
 
+(defn assessment
+  "Returns UI for the assessment section"
+  [pass]
+  (fieldset
+   :id "assessment"
+   (legend "Assessment")
+   "TODO"))
+
 (def keymap {97 :a
              98 :b
              99 :c
@@ -867,25 +875,29 @@ L30 1100")))
   :id "body"
   ;;:keypress keypress
   titlebar
-  (if-tpl loading?
-    [(div
-      :id "loading-placeholder"
-      (span
-       :id "loading-placeholder-message"
-       "Loading...")
-      (img :id "spinner" :src "images/spinner.gif"))]
-    (button :click load-acmi "Load ACMI"))
-  (formula-of
-   [acmi passes]
-   (cond
-     (not acmi) (div "No ACMI file loaded")
-     (empty? passes) (div "No passes detected in loaded ACMI")
-     :else pass-selection-ui))
   (div
-   :id "graphs"
-   aoa
-   elevation
-   plan)))
+   :id "content"
+   (div
+    :id "sidebar"
+    (if-tpl loading?
+      [(div
+        :id "loading-placeholder"
+        (span
+         :id "loading-placeholder-message"
+         "Loading...")
+        (img :id "spinner" :src "images/spinner.gif"))]
+      (button :click load-acmi "Load ACMI"))
+    (formula-of
+     [acmi passes selected-pass]
+     (cond
+       (not acmi) (div "No ACMI file loaded")
+       (empty? passes) (div "No passes detected in loaded ACMI")
+       :else [pass-selection-ui (assessment selected-pass)])))
+   (div
+    :id "graphs"
+    aoa
+    elevation
+    plan))))
 
 ;; Keypresses handler was getting registered more than once when the
 ;; code would reload, which is super annoying.

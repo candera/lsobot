@@ -66,6 +66,25 @@ body {
     color: white
 }
 
+#sidebar {
+    float: left;
+    min-width: 150px;
+    margin-right: 5px;
+}
+
+#pass-selection-section select {
+    min-width: 120px;
+    float: right;
+    margin-top: 2px;
+}
+
+#pass-selection-section div {
+}
+
+#graphs {
+    overflow: hidden;
+}
+
 #passes td {
     padding-right: 7px;
 }
