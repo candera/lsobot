@@ -263,8 +263,9 @@
 
 (defn parse-event
   [event-data]
-  (let [[event-type & more] (str/split event-data #"|")
-        ids (butlast more)
+  (let [[event-type & more] (str/split event-data #"\|")
+        ids (when (< 1 (count more))
+              (butlast more))
         text (last more)]
     {::event-type (event-types event-type)
      ::ids        ids

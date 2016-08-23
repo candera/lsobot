@@ -32,7 +32,7 @@
 (def default-parameters
   {:min-time      10  ; Seconds
    :max-slope     10  ; Degrees
-   :max-angle     10  ; Degrees
+   :max-angle     20  ; Degrees
    :min-dist      0.4 ; Pass has to start at least this far away (nm).
                                         ; Prevents things like detecting a pass starting
                                         ; on the deck.
@@ -244,16 +244,19 @@
        ::pilot e0
        ::aoa (- (::acmi/pitch e0) path-a)})))
 
-(defn finalize-pass
+(defn assess-pass
   "Perform any processing that can only happen once we have the whole
-  pass. Returns the augmented pass."
-  [pilot-id pass]
-  (mapv (fn [f0 f1]
-          (merge f0 (aoa-data pilot-id f0 f1)))
-        pass
-        (drop 4 pass)))
+  pass. Returns the assessment."
+  [pilot-id frames]
+  (let [augmented-frames (mapv (fn [f0 f1]
+                                 (merge f0 (aoa-data pilot-id f0 f1)))
+                               frames
+                               (drop 4 frames))]
+    {::result :ramp-strike ; TODO
+     ::frames augmented-frames}))
 
 (defn find-passes
+  "Returns a seq of assessments found for the given pilot and carrier."
   [file carrier-id pilot-id params]
   (loop [[frame & frames] (::acmi/frames file)
          start nil
@@ -274,14 +277,6 @@
                    t)
                  nil
                  [pass-frame]
-                 passes)
-
-          ;; Still on approach
-          approaching?
-          (recur frames
-                 start
-                 end
-                 (conj pass-frames pass-frame)
                  passes)
 
           ;; Either we're not in the approach cone any more, or the
@@ -305,29 +300,47 @@
                      nil
                      nil
                      []
-                     (conj passes (finalize-pass pilot-id
-                                                 (into pass-frames* coda-frames)))))
+                     (conj passes (assess-pass pilot-id
+                                               (into pass-frames* coda-frames)))))
             ;; Nope - go back to looking
             (recur frames
                    nil
                    nil
                    []
-                   passes)))))))
+                   passes))
+
+          ;; Still on approach
+          :else
+          (recur frames
+                 start
+                 end
+                 (conj pass-frames pass-frame)
+                 passes))))))
 
 (def carrier-id acmi/id)
 (def pilot-id acmi/id)
 (s/def ::slope float?)
 (s/def ::distance float?)
 (s/def ::course-deviation float?)
-(def pass-frame (s/keys :req [::slope ::distance ::course-deviation ::acmi/entities]))
+(s/def ::result #{:trap :bolter :waveoff :ramp-strike})
+(def frame (s/keys :req [::slope
+                         ::distance
+                         ::course-deviation
+                         ::acmi/entities
+                         ::acmi/t
+                         ::acmi/events]))
+
+(s/def ::frames (s/spec (s/* frame)))
+
+(def assessment (s/keys :req [::result ::frames]))
 
 (s/fdef passes
         :args acmi/file
-        :ret (s/map-of carrier-id (s/map-of pilot-id (s/* pass-frame))))
+        :ret (s/map-of carrier-id (s/map-of pilot-id (s/* assessment))))
 
 (defn passes
   "Returns a map from IDs of carriers to map of pilot ids to sequences
-  of passes."
+  of pass assessments."
   [file params]
   (let [entities (-> file ::acmi/frames last acmi/entities)
         carriers (->> entities

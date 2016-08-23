@@ -502,49 +502,23 @@
       [(* x' (/ x ax))
        (* y' (/ y ay))]))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; Below this line, we switched to async processing, so the above may
-;; not work
-;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(let [lines (async/chan 10)]
-  (->> "/tmp/2016-08-12-WSF-yellowjacket5-Sting51.txt.acmi"
-       clojure.java.io/reader
-       line-seq
-       (take 1000000)
-       (async/onto-chan lines))
-  (def l8 (acmi/read-acmi lines))
-  #_(def l8 lines))
+(let [path "/Users/candera/Downloads/Vinson 1 and 4 Wire/Ramp Strike.txt.acmi"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/passes file grading/default-parameters)]
+  (for [[carrier-id pilot-passes] passes
+        [pilot-id assessments] pilot-passes
+        assessment assessments]
+    (printf "Carrier: %s, Pilot: %s, Time: %s\n"
+            carrier-id pilot-id (->> assessment
+                                     first
+                                     ::acmi/t
+                                     (time-str nil)))))
 
-(def c8 (atom 0))
-
-(def f8 (future
-          (while (async/<!! l8)
-            (swap! c8 inc))))
-
-(time
- (async/go-loop [last-frame nil
-                 n 0]
-   (if-let [frame (async/<! l8)]
-     (recur frame (inc n))
-     #_[last-frame n]
-     [(class last-frame) n])))
-
-(count a8)
-
-(-> a8 last pprint)
-
-(->> "/tmp/2016-08-12-WSF-yellowjacket5-Sting51.txt.acmi"
-     clojure.java.io/reader
-     line-seq
-     #_(take 100000)
-     (map acmi/parse-line)
-     count
-     #_(drop 1000)
-     #_first
-     time)
-
-
-
+(let [path "/Users/candera/Downloads/Vinson 1 and 4 Wire/Ramp Strike.txt.acmi"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/passes file grading/default-parameters)
+      assessment (get-in passes ["2818779800000010" "2818779800000001" 2])]
+  (->> assessment
+       (mapcat ::acmi/events)
+       pprint))

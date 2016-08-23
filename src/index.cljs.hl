@@ -37,11 +37,11 @@
 (defn get-passes
   [acmi params]
   (->>  (for [[carrier-id pilot-passes] (grading/passes acmi params)
-              [pilot-id passes] pilot-passes
-              pass-frames passes]
-          {:frames     pass-frames
+              [pilot-id assessments] pilot-passes
+              assessment assessments]
+          {:assessment assessment
            :carrier-id carrier-id
-           :start      (-> pass-frames first ::acmi/t)
+           :start      (-> assessment ::grading/frames first ::acmi/t)
            :pilot-id   pilot-id})
         (map-indexed (fn [index m]
                        (assoc m :index index)))))
@@ -200,21 +200,31 @@
    :aoa-aspect 3
    })
 
+(def carrier-dimensions
+  {:length 1100
+   :x-offset -117
+   :y-offset 180})
+
 (defn carrier-elevation
   "SVG data for the elevation view of the carrier"
   [deck-height]
   (svg/g
    ;; TODO: Change this so that the zero point matches the location of
    ;; the landing point
-   :transform (gstring/format "scale(-1 1) translate(970 -%f)" (double deck-height))
+   :transform (gstring/format "scale(-1 1) translate(%f -%f)"
+                              (- (:length carrier-dimensions)
+                                 (:y-offset carrier-dimensions))
+                              (double deck-height))
    (svg/path
     :id "carrier-outline-elevation"
     ;; The class attribute doesn't work correctly on SVG
     ;; elements, but we can use :attr to pull it off.
     :attr {:class "carrier-side"}
-    :d (gstring/format "M-50 0 L0 %f L-1100 %f L-1100 0"
+    :d (gstring/format "M-50 0 L0 %f L%f %f L%f 0"
                        (double deck-height)
-                       (double deck-height)))
+                       (- (:length carrier-dimensions))
+                       (double deck-height)
+                       (- (:length carrier-dimensions))))
    (svg/rect
     :attr {:class "carrier-side"}
     :x -850
@@ -274,7 +284,10 @@ L0 350
 L0 920
 L30 1100")))
      (svg/g
-      :transform "rotate(-83) translate(-130 -970)"
+      :transform (gstring/format "rotate(-83) translate(%f %f)"
+                                 (:x-offset carrier-dimensions)
+                                 (- (:y-offset carrier-dimensions)
+                                    (:length carrier-dimensions)))
       outline
       (svg/g
        :clip-path "url(#carrier-outline-clip)"
@@ -331,7 +344,8 @@ L30 1100")))
   (svg/g
    :attr {:class "aoa-data"}
    (let [[frames _] (->> pass
-                         :frames
+                         :assessment
+                         ::grading/frames
                          (reduce (fn [acc frame]
                                    (let [[frames prior-aoa] acc
                                          aoa (::grading/aoa frame)
@@ -406,7 +420,7 @@ L30 1100")))
   [params pass]
   (svg/g
    :attr {:class "approach-path"}
-   (for [frame (:frames pass)]
+   (for [frame (-> pass :assessment ::grading/frames)]
      (let [{:keys [::grading/downrange
                    ::grading/height
                    ::grading/glideslope]} frame]
@@ -451,7 +465,7 @@ L30 1100")))
   (svg/g
    :attr {:class "approach-path"}
 
-   (for [frame (:frames pass)]
+   (for [frame (-> pass :assessment ::grading/frames)]
      (let [{:keys [::grading/downrange
                    ::grading/crosstrack-error
                    ::grading/course-deviation
