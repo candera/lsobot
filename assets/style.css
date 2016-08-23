@@ -1,8 +1,19 @@
+html,body {
+    height: 100%;
+    /* flex-direction: column; */
+}
+
 body {
     font-family: 'Open Sans Condensed', sans-serif;
     font-weight: 500;
     background-color: #FDFFD9;
     padding-right: 3px;
+    display: flex;
+    flex-direction: column;
+}
+
+#content {
+    display: flex;
 }
 
 #titlebar {
@@ -67,9 +78,15 @@ body {
 }
 
 #sidebar {
-    float: left;
-    min-width: 150px;
+    /* float: left; */
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
     margin-right: 5px;
+}
+
+#load-button {
+    align-self: center;
 }
 
 #pass-selection-section select {
@@ -82,7 +99,21 @@ body {
 }
 
 #graphs {
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    /* overflow: hidden; */
+}
+
+.graph-label {
+    display: inline-block;
+    background: black;
+    color: white;
+    font-weight: 600;
+    /* font-size: 115%; */
+    width: 100%;
+    padding-left: 2px;
+    /* right: 0; */
 }
 
 #passes td {
@@ -115,11 +146,10 @@ tr:nth-child(even) {
 
 #elevation,#plan,#aoa {
     background: #0d0d27;
-    display: block;
     border: solid 1px black;
-    margin-top: 7px;
+    margin-top: 0;
     width: 100%;
-    /* max-width: 1024px;*/
+    /* padding-right: 3px; */
 }
 
 .carrier {
@@ -174,6 +204,18 @@ tr:nth-child(even) {
     opacity: 1.0;
 }
 
+.original {
+    stroke: red;
+}
+
+.pitch {
+    stroke: green;
+}
+
+.path-alpha {
+    stroke: yellow;
+}
+
 .unacceptable {
     stroke: red;
     fill: red;
@@ -209,14 +251,14 @@ tr:nth-child(even) {
 
 .guideline.minor {
     stroke-width: 15;
-    stroke: orange;
+    stroke: yellow;
     opacity: 1;
     stroke-dasharray: 10 30;
 }
 
 .guideline.major {
     stroke-width: 15;
-    stroke: red;
+    stroke: orange;
     opacity: 1;
     stroke-dasharray: 10 30;
 }
@@ -235,13 +277,13 @@ tr:nth-child(even) {
 }
 
 .axis-label.minor {
-    stroke: orange;
-    fill: orange;
+    stroke: yellow;
+    fill: yellow;
 }
 
 .axis-label.major {
-    stroke: red;
-    fill: red;
+    stroke: orange;
+    fill: orange;
 }
 
 

@@ -188,16 +188,16 @@
     (.setAttribute elem "preserveAspectRatio" value)))
 
 (def view-bounds
-  {:west -1500
+  {:west -1100
    :east 7000
    :north (units/nm->ft -0.25)
    :south (units/nm->ft 0.25)
-   :high (units/nm->ft 0.5)
+   :high (units/nm->ft 0.35)
    :low -500
    :fast 5.5                            ; Degrees AOA
    :slow 10.5                           ; Degrees AOA
    ;;:aoa-aspect 6.7
-   :aoa-aspect 4
+   :aoa-aspect 3
    })
 
 (defn carrier-elevation
@@ -351,26 +351,42 @@ L30 1100")))
            :let [{:keys [::aoa
                          ::prior-aoa
                          ::grading/downrange
-                         ::grading/pilot]} frame]
+                         ::grading/pilot
+                         ::grading/path-a]} frame]
            :when (and aoa (pos? downrange))]
-       [(let [aoa (::grading/aoa data)]
+       [(let [grading-aoa (::grading/aoa frame)]
           (svg/circle
-           :attr {:class "original"}
-           :transform (gstring/format "translate(%f %f) rotate(%f)"
+           :attr {:class (str "original " (name (classify params grading-aoa)))
+                  "grading-aoa" grading-aoa}
+           :transform (gstring/format "translate(%f %f)"
                                       downrange
-                                      (* scale aoa)
-                                      (-> frame
-                                          ::grading/pilot
-                                          ::acmi/pitch
-                                          (* -1 pitch-exaggeration)))
+                                      (* scale grading-aoa))
            :cx 0
            :cy 0
            :r 25))
-        (svg/circle
+        #_(let [pitch (-> frame ::grading/pilot ::acmi/pitch)]
+          (svg/circle
+           :attr {:class "pitch"
+                  "pitch" pitch}
+           :transform (gstring/format "translate (%f %f)"
+                                      downrange
+                                      (* scale pitch))
+           :cx 0
+           :cy 0
+           :r 25))
+        #_(svg/circle
+         :attr {:class "path-alpha"
+                "path-alpha" path-a
+                "altitude-change" (::grading/zd frame)
+                "distance-change" (::grading/d frame)}
+         :transform (gstring/format "translate (%f %f)"
+                                    downrange
+                                    (* scale path-a))
+         :cx 0
+         :cy 0
+         :r 25)
+        #_(svg/circle
          :attr {"smoothed-aoa" aoa
-                "original-aoa" (::grading/aoa frame)
-                "path-a" (::grading/path-a frame)
-                "pitch"  (-> frame ::grading/pilot ::acmi/pitch)
                 "prior-aoa" prior-aoa
                 :class (str "smoothed " (name (classify params aoa)))}
          :transform (gstring/format "translate(%f %f) rotate(%f)"
@@ -382,25 +398,7 @@ L30 1100")))
                                         (* -1 pitch-exaggeration)))
          :cx 0
          :cy 0
-         :r 25)]
-       ;; Lines instead of circles
-       #_(svg/line
-          :attr {"t" t
-                 "aoa" aoa
-                 "path-a" (::grading/path-a data)
-                 "pitch"  (-> data ::grading/pilot ::acmi/pitch)
-                 :class (name (classify params aoa))}
-          :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                     downrange
-                                     (* scale aoa)
-                                     (-> data
-                                         ::grading/pilot
-                                         ::acmi/pitch
-                                         (* -1 pitch-exaggeration)))
-          :x1 -30
-          :x2 30
-          :y1 0
-          :y2 0)))))
+         :r 25)]))))
 
 (def elevation-exaggeration 4)
 
@@ -528,7 +526,7 @@ L30 1100")))
           (guideline (:ideal params) "ideal")
           (for [y [6 10]]
             (guideline y ""))
-          (for [[k1 m] (select-keys params [:good :minor :major])
+          (for [[k1 m] (select-keys params [:good :major])
                 [k2 v] (select-keys m [:low :high])
                 :let [class (str (name k1) " " (name k2))] ]
             (guideline v class))))
@@ -831,8 +829,27 @@ L30 1100")))
   [pass]
   (fieldset
    :id "assessment"
-   (legend "Assessment")
-   "TODO"))
+   (legend "Assessment (Not working yet)")
+   (table
+    (tr (td "Result")  (td "Trap") ;; Trap, waveoff, bolter, crash
+        )
+    (tr (td "Overall grade") (td "OMG"))
+    (tr (td "Wire") (td "3"))
+    (tr (td "Called ball?") (td (input :type "checkbox")))
+    (tr (td "Difficult conditions?") (td (input :type "checkbox"))))
+   (for [distance ["Start" "Mid" "In Close" "At the Ramp"]]
+     (div
+      (div distance)
+      (table
+       (tr
+        (td "AoA")
+        (td "Little fast"))
+       (tr
+        (td "Glideslope")
+        (td "OK"))
+       (tr
+        (td "Lineup")
+        (td "Left")))))))
 
 (def keymap {97 :a
              98 :b
@@ -886,18 +903,25 @@ L30 1100")))
          :id "loading-placeholder-message"
          "Loading...")
         (img :id "spinner" :src "images/spinner.gif"))]
-      (button :click load-acmi "Load ACMI"))
+      (button :id "load-button" :click load-acmi "Load ACMI"))
     (formula-of
      [acmi passes selected-pass]
      (cond
        (not acmi) (div "No ACMI file loaded")
        (empty? passes) (div "No passes detected in loaded ACMI")
-       :else [pass-selection-ui (assessment selected-pass)])))
+       :else [pass-selection-ui]))
+    (assessment selected-pass))
    (div
     :id "graphs"
-    aoa
-    elevation
-    plan))))
+    (div
+     (div :class "graph-label" "AoA")
+     aoa)
+    (div
+     (div :class "graph-label" "Glideslope")
+     elevation)
+    (div
+     (div :class "graph-label" "Lineup")
+     plan)))))
 
 ;; Keypresses handler was getting registered more than once when the
 ;; code would reload, which is super annoying.

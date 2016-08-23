@@ -58,8 +58,8 @@
                    :major {:low  2.3
                            :high 4.3}}
    :aoa           {:ideal 8.1
-                   :good  {:low  7.9
-                           :high 8.3}
+                   :good  {:low  7.4
+                           :high 8.8}
                    :minor {:low  7.4
                            :high 8.8}
                    :major {:low  6.9
@@ -237,18 +237,21 @@
     ;; changes. In which case, we can't compute a meaninful AOA.
     (if (= [u1 v1] [u0 v0])
       {}
-      {::path-a path-a
-       ::pitch (::acmi/pitch e1)
-       ::aoa (- (::acmi/pitch e1) path-a)})))
+      {::zd (- z1 z0)
+       ::d d
+       ::path-a path-a
+       ::pitch (::acmi/pitch e0)
+       ::pilot e0
+       ::aoa (- (::acmi/pitch e0) path-a)})))
 
 (defn finalize-pass
   "Perform any processing that can only happen once we have the whole
   pass. Returns the augmented pass."
   [pilot-id pass]
   (mapv (fn [f0 f1]
-          (merge f1 (aoa-data pilot-id f0 f1)))
+          (merge f0 (aoa-data pilot-id f0 f1)))
         pass
-        (drop 1 pass)))
+        (drop 4 pass)))
 
 (defn find-passes
   [file carrier-id pilot-id params]
