@@ -116,37 +116,69 @@
         (* x (Math/sin theta)))
      z]))
 
+(s/def ::direction (s/nilable #{:low :high}))
+(s/def ::degree #{:ideal :good :minor :major :unacceptable})
+(def deviation (s/keys :req [::direction ::degree]))
+(s/def ::deviation deviation)
+
+(s/fdef classify
+        :args nil ; todo
+        :ret deviation)
+
+(defn classify
+  "Classifies the deviation value v represents according to params."
+  [params v]
+  (let [{:keys [ideal good minor major]} params]
+    {::degree (cond
+                (= ideal v) :ideal
+                (<= (:low good) v (:high good)) :good
+                (<= (:low minor) v (:high minor)) :minor
+                (<= (:low major) v (:high major)) :major
+                :else :unacceptable)
+     ::direction (when-not (= v ideal)
+                   (if (< v ideal) :low :high))}))
+
+(s/fdef glideslope
+        :args nil ; todo
+        :ret (s/keys :req [::value ::deviation]))
+
 (defn glideslope
   "Compute the glideslope, taking the landing window into
   consideration. Angles are in degrees."
-  [ideal window height distance]
+  [params window height distance downrange]
   (let [w (/ window 2)
         d-far  (+ distance w)
         d-near (- distance w)
-        g-ideal (units/deg->rad ideal)
+        g-ideal (units/deg->rad (:ideal params))
         g-near (Math/atan2 height d-near)
-        g-far (Math/atan2 height d-far)]
-    (units/rad->deg
-     (cond
-       (<= g-far g-ideal g-near) g-ideal
-       (< g-ideal g-far) g-far
-       :else g-near))))
+        g-far (Math/atan2 height d-far)
+        value (units/rad->deg
+              (cond
+                (<= g-far g-ideal g-near) g-ideal
+                (< g-ideal g-far) g-far
+                :else g-near))]
+    {::value value
+     ::deviation (when (pos? downrange)
+                   (classify params value))}))
 
 (defn lineup
   "Compute the lineup error, taking the landing window
   consideration. Angles are in degrees."
-  [ideal window crosstrack-error downrange]
+  [params window crosstrack-error downrange]
   (let [w (/ window 2)
         c-right  (+ crosstrack-error w)
         c-left (- crosstrack-error w)
-        l-ideal (units/deg->rad ideal)
+        l-ideal (units/deg->rad (:ideal params))
         l-left (Math/atan2 c-left downrange)
-        l-right (Math/atan2 c-right downrange)]
-    (units/rad->deg
-     (cond
-       (<= l-left l-ideal l-right) l-ideal
-       (< l-ideal l-left) l-left
-       :else l-right))))
+        l-right (Math/atan2 c-right downrange)
+        value (units/rad->deg
+               (cond
+                 (<= l-left l-ideal l-right) l-ideal
+                 (< l-ideal l-left) l-left
+                 :else l-right))]
+    {::value value
+     ::deviation (when (pos? downrange)
+                   (classify params value))}))
 
 (defn characterize-frame
   [carrier-id pilot-id params frame]
@@ -157,70 +189,76 @@
         ;; ACMI space
         pilot-loc    [(::acmi/u pilot)
                       (::acmi/v pilot)
-                      (::acmi/alt pilot)]]
-    (if-not (and (::acmi/u carrier) (::acmi/v carrier))
-      {:approaching? false}
-      (let [carrier-loc  [(::acmi/u carrier)
-                          (::acmi/v carrier)
-                          0]
-            ;; Assume a north heading if we can't find one
-            carrier-hdg  (or (::acmi/heading carrier) 0)
-            landing-loc  (mapv +
-                               (rotate-z (- carrier-hdg)
-                                         (mapv units/ft->m (:landing-point params)))
-                               carrier-loc)
-            [window-width window-length] (:landing-window params)
-            ;; Now into landing space
-            coords       (->> (mapv - pilot-loc landing-loc)
-                              (rotate-z (- carrier-hdg (:recovery-skew params)))
-                              (mapv units/m->ft)
-                              (mapv * [1 -1 1]))
-            [crosstrack-error downrange height]   coords
-            distance     (Math/sqrt (+ (* crosstrack-error crosstrack-error)
-                                       (* downrange downrange)))
-            s            (units/rad->deg (Math/atan2 height distance))
-            d            distance
-            c            (-> (units/rad->deg (Math/asin (/ crosstrack-error distance)))
-                             (+ (if (pos? downrange)
-                                  0
-                                  180)))
-            approaching? (and s d c
-                              (< s (:max-slope params))
-                              (< d (-> params
-                                       :max-dist
-                                       units/nm->ft))
-                              (< (Math/abs c)
-                                 (:max-angle params)))
-            pass-frame   (merge frame
-                                {::downrange        downrange
-                                 ::crosstrack-error crosstrack-error
-                                 ::lineup           (lineup (-> params
-                                                                :lineup
-                                                                :ideal)
-                                                            window-width
-                                                            crosstrack-error
-                                                            downrange)
-                                 ::glideslope       (glideslope (-> params
-                                                                    :glideslope
-                                                                    :ideal)
-                                                                window-length
-                                                                height
-                                                                distance)
-                                 ::height           height
-                                 ::slope            s
-                                 ::distance         d
-                                 ::course-deviation c})]
-        (into (sorted-map)
-              {:landing-loc landing-loc
-               :carrier-loc carrier-loc
-               :pilot-loc pilot-loc
-               :approaching? approaching?
-               :distance d
-               :pass-frame pass-frame})))))
+                      (::acmi/alt pilot)]
+        removed? (::acmi/removed? pilot)]
+    (merge
+     {:removed? removed?}
+     (if-not (and (::acmi/u carrier) (::acmi/v carrier))
+       {:approaching? false}
+       (let [carrier-loc  [(::acmi/u carrier)
+                           (::acmi/v carrier)
+                           0]
+             ;; Assume a north heading if we can't find one
+             carrier-hdg  (or (::acmi/heading carrier) 0)
+             landing-loc  (mapv +
+                                (rotate-z (- carrier-hdg)
+                                          (mapv units/ft->m (:landing-point params)))
+                                carrier-loc)
+             [window-width window-length] (:landing-window params)
+             ;; Now into landing space
+             coords       (->> (mapv - pilot-loc landing-loc)
+                               (rotate-z (- carrier-hdg (:recovery-skew params)))
+                               (mapv units/m->ft)
+                               (mapv * [1 -1 1]))
+             [crosstrack-error downrange height]   coords
+             distance     (Math/sqrt (+ (* crosstrack-error crosstrack-error)
+                                        (* downrange downrange)))
+             s            (units/rad->deg (Math/atan2 height distance))
+             d            distance
+             c            (-> (units/rad->deg (Math/asin (/ crosstrack-error distance)))
+                              (+ (if (pos? downrange)
+                                   0
+                                   180)))
+             approaching? (and s d c
+                               (< s (:max-slope params))
+                               (< d (-> params
+                                        :max-dist
+                                        units/nm->ft))
+                               (< (Math/abs c)
+                                  (:max-angle params)))
+             pass-frame   (merge frame
+                                 {::downrange        downrange
+                                  ::crosstrack-error crosstrack-error
+                                  ::lineup           (lineup (:lineup params)
+                                                             window-width
+                                                             crosstrack-error
+                                                             downrange)
+                                  ::glideslope       (glideslope (:glideslope params)
+                                                                 window-length
+                                                                 height
+                                                                 distance
+                                                                 downrange)
+                                  ::height           height
+                                  ::slope            s
+                                  ::distance         d
+                                  ::course-deviation c})]
+         (into (sorted-map)
+               {:landing-loc landing-loc
+                :carrier-loc carrier-loc
+                :pilot-loc pilot-loc
+                :approaching? approaching?
+                :distance d
+                :pass-frame pass-frame}))))))
+
+(s/def ::aoa (s/keys :req [::value ::deviation]))
+
+(s/fdef aoa-data
+        :args nil ; TODO
+        :ret (s/keys :req [::aoa]))
 
 (defn aoa-data
   "Computes angle of attack and related quantities given two frames"
-  [pilot-id f0 f1]
+  [params pilot-id f0 f1]
   (let [e0 (acmi/entity f0 pilot-id)
         e1 (acmi/entity f1 pilot-id)
         u0 (::acmi/u e0)
@@ -242,17 +280,19 @@
        ::path-a path-a
        ::pitch (::acmi/pitch e0)
        ::pilot e0
-       ::aoa (- (::acmi/pitch e0) path-a)})))
+       ::aoa (let [value (- (::acmi/pitch e0) path-a)]
+               {::value value
+                ::deviation (classify params value)})})))
 
 (defn assess-pass
   "Perform any processing that can only happen once we have the whole
   pass. Returns the assessment."
-  [pilot-id frames]
+  [params pilot-id frames]
   (let [augmented-frames (mapv (fn [f0 f1]
-                                 (merge f0 (aoa-data pilot-id f0 f1)))
+                                 (merge f0 (aoa-data (:aoa params) pilot-id f0 f1)))
                                frames
                                (drop 4 frames))]
-    {::result :ramp-strike ; TODO
+    {::result (rand-nth [:ramp-strike :bolter :waveoff :trap]) ; TODO
      ::frames augmented-frames}))
 
 (defn find-passes
@@ -266,7 +306,7 @@
     (if-not frame
       passes
       (let [t (::acmi/t frame)
-            {:keys [distance approaching? pass-frame]}
+            {:keys [distance approaching? pass-frame removed?]}
             (characterize-frame carrier-id pilot-id params frame)]
         (cond
           ;; Look for start of pass
@@ -281,7 +321,9 @@
 
           ;; Either we're not in the approach cone any more, or the
           ;; file has ended
-          (or (not approaching?) (empty? frames))
+          (or (not approaching?)
+              removed?
+              (empty? frames))
           ;; Have we been in the cone long enough?
           (if (< (:min-time params) (- t (or start 0)))
             ;; Yes - record the pass
@@ -300,7 +342,8 @@
                      nil
                      nil
                      []
-                     (conj passes (assess-pass pilot-id
+                     (conj passes (assess-pass params
+                                               pilot-id
                                                (into pass-frames* coda-frames)))))
             ;; Nope - go back to looking
             (recur frames

@@ -202,8 +202,8 @@
 
 (def carrier-dimensions
   {:length 1100
-   :x-offset -117
-   :y-offset 180})
+   :x-offset -102
+   :y-offset 300})
 
 (defn carrier-elevation
   "SVG data for the elevation view of the carrier"
@@ -320,17 +320,14 @@ L30 1100")))
 
 (def pitch-exaggeration 1)
 
-(defn classify
-  "Classifies the value according to params: ideal, good, minor,
-  major, unacceptable."
-  [params v]
-  (let [{:keys [ideal good minor major]} params]
-    (cond
-      (= ideal v) :ideal
-      (<= (:low good) v (:high good)) :good
-      (<= (:low minor) v (:high minor)) :minor
-      (<= (:low major) v (:high major)) :major
-      :else :unacceptable)))
+(defn deviation-classes
+  [base deviation]
+  (let [{:keys [::grading/direction ::grading/degree]} deviation]
+    (str base
+         " "
+         (when direction (name direction))
+         " "
+         (when degree (name degree)))))
 
 (def aoa-smoothing 0.9)
 
@@ -343,76 +340,60 @@ L30 1100")))
              :first-map? (-> pass first map?))
   (svg/g
    :attr {:class "aoa-data"}
-   (let [[frames _] (->> pass
-                         :assessment
-                         ::grading/frames
-                         (reduce (fn [acc frame]
-                                   (let [[frames prior-aoa] acc
-                                         aoa (::grading/aoa frame)
-                                         prior-aoa (or prior-aoa aoa)
-                                         ;; Sometimes there's no AOA
-                                         ;; data for some reason
-                                         aoa* (if-not aoa
-                                                prior-aoa
-                                                (+ (* aoa-smoothing prior-aoa)
-                                                   (* (- 1 aoa-smoothing) aoa)))]
-                                     [(conj frames (assoc frame
-                                                          ::aoa aoa*
-                                                          ::prior-aoa prior-aoa))
-                                      aoa*]))
-                                 [[] nil]))]
+   (let [frames (->> pass :assessment ::grading/frames)]
      (for [frame frames
-           :let [{:keys [::aoa
-                         ::prior-aoa
-                         ::grading/downrange
-                         ::grading/pilot
-                         ::grading/path-a]} frame]
+           :let [{:keys [::grading/aoa ::grading/t ::grading/downrange]} frame
+                 {:keys [::grading/value ::grading/deviation]} aoa]
            :when (and aoa (pos? downrange))]
-       [(let [grading-aoa (::grading/aoa frame)]
-          (svg/circle
-           :attr {:class (str "original " (name (classify params grading-aoa)))
-                  "grading-aoa" grading-aoa}
+       (do
+         (log/debug "aoa-data"
+                    :aoa aoa
+                    :t t
+                    :downrange downrange)
+         [(svg/circle
+           :attr {:class (deviation-classes "aoa-value " deviation)
+                  :t t}
            :transform (gstring/format "translate(%f %f)"
                                       downrange
-                                      (* scale grading-aoa))
+                                      (* scale value))
            :cx 0
            :cy 0
-           :r 25))
-        #_(let [pitch (-> frame ::grading/pilot ::acmi/pitch)]
-          (svg/circle
-           :attr {:class "pitch"
-                  "pitch" pitch}
-           :transform (gstring/format "translate (%f %f)"
-                                      downrange
-                                      (* scale pitch))
-           :cx 0
-           :cy 0
-           :r 25))
-        #_(svg/circle
-         :attr {:class "path-alpha"
-                "path-alpha" path-a
-                "altitude-change" (::grading/zd frame)
-                "distance-change" (::grading/d frame)}
-         :transform (gstring/format "translate (%f %f)"
-                                    downrange
-                                    (* scale path-a))
-         :cx 0
-         :cy 0
-         :r 25)
-        #_(svg/circle
-         :attr {"smoothed-aoa" aoa
-                "prior-aoa" prior-aoa
-                :class (str "smoothed " (name (classify params aoa)))}
-         :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                    downrange
-                                    (* scale aoa)
-                                    (-> frame
-                                        ::grading/pilot
-                                        ::acmi/pitch
-                                        (* -1 pitch-exaggeration)))
-         :cx 0
-         :cy 0
-         :r 25)]))))
+           :r 25)
+          #_(let [pitch (-> frame ::grading/pilot ::acmi/pitch)]
+              (svg/circle
+               :attr {:class "pitch"
+                      "pitch" pitch}
+               :transform (gstring/format "translate (%f %f)"
+                                          downrange
+                                          (* scale pitch))
+               :cx 0
+               :cy 0
+               :r 25))
+          #_(svg/circle
+             :attr {:class "path-alpha"
+                    "path-alpha" path-a
+                    "altitude-change" (::grading/zd frame)
+                    "distance-change" (::grading/d frame)}
+             :transform (gstring/format "translate (%f %f)"
+                                        downrange
+                                        (* scale path-a))
+             :cx 0
+             :cy 0
+             :r 25)
+          #_(svg/circle
+             :attr {"smoothed-aoa" aoa
+                    "prior-aoa" prior-aoa
+                    :class (str "smoothed " (name (classify params aoa)))}
+             :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                        downrange
+                                        (* scale aoa)
+                                        (-> frame
+                                            ::grading/pilot
+                                            ::acmi/pitch
+                                            (* -1 pitch-exaggeration)))
+             :cx 0
+             :cy 0
+             :r 25)])))))
 
 (def elevation-exaggeration 4)
 
@@ -423,12 +404,13 @@ L30 1100")))
    (for [frame (-> pass :assessment ::grading/frames)]
      (let [{:keys [::grading/downrange
                    ::grading/height
-                   ::grading/glideslope]} frame]
+                   ::grading/glideslope
+                   ::acmi/t]} frame
+           {:keys [::grading/value ::grading/deviation]} glideslope]
        (svg/circle
-        :attr {"glideslope" glideslope
-               :class (if (pos? downrange)
-                        (name (classify params glideslope))
-                        "")}
+        :attr {:glideslope value
+               :t t
+               :class (deviation-classes "glideslope-data" deviation)}
         :cx downrange
         :cy (* elevation-exaggeration height)
         :r 25)))))
@@ -467,17 +449,16 @@ L30 1100")))
 
    (for [frame (-> pass :assessment ::grading/frames)]
      (let [{:keys [::grading/downrange
+                   ::grading/lineup
                    ::grading/crosstrack-error
-                   ::grading/course-deviation
-                   ::grading/lineup]} frame
+                   ::acmi/t]} frame
+           {:keys [::grading/value ::grading/deviation]} lineup
            [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
        ;; TODO: Exaggerate the angle to make errors more obvious
        (svg/circle
-        :attr {"lineup" lineup
-               "course-dev" course-deviation
-               :class (if (pos? downrange)
-                        (name (classify params lineup))
-                        "")}
+        :attr {:lineup value
+               :t t
+               :class (deviation-classes "lineup-data" deviation)}
         :cx (if (pos? downrange) downrange* downrange)
         :cy (if (pos? downrange) crosstrack* crosstrack-error)
         :r 25)))))
@@ -838,6 +819,12 @@ L30 1100")))
           (img :id "winglogo"
                :src "images/1stVFW_Insignia-64.png"))))
 
+(def result-text
+  {:trap "Trap"
+   :waveoff "Waveoff"
+   :ramp-strike "Ramp Strike"
+   :bolter "Bolter"})
+
 (defn assessment
   "Returns UI for the assessment section"
   [pass]
@@ -845,7 +832,12 @@ L30 1100")))
    :id "assessment"
    (legend "Assessment (Not working yet)")
    (table
-    (tr (td "Result")  (td "Trap") ;; Trap, waveoff, bolter, crash
+    (tr (td "Result")
+        (td (formula-of [selected-pass]
+                        (-> selected-pass
+                            :assessment
+                            ::grading/result
+                            (result-text "No Result")))) ;; Trap, waveoff, bolter, crash
         )
     (tr (td "Overall grade") (td "OMG"))
     (tr (td "Wire") (td "3"))

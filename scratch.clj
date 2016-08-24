@@ -511,6 +511,7 @@
         assessment assessments]
     (printf "Carrier: %s, Pilot: %s, Time: %s\n"
             carrier-id pilot-id (->> assessment
+                                     ::grading/frames
                                      first
                                      ::acmi/t
                                      (time-str nil)))))
@@ -519,6 +520,13 @@
       file (-> path slurp acmi/read-acmi)
       passes (grading/passes file grading/default-parameters)
       assessment (get-in passes ["2818779800000010" "2818779800000001" 2])]
-  (->> assessment
-       (mapcat ::acmi/events)
-       pprint))
+  #_(->> assessment
+       ::grading/frames
+       (mapcat ::acmi/events))
+  (-> assessment
+      ::grading/frames
+      (nth 244)
+      #_last
+      #_(acmi/entity "2818779800000001")
+      #_pprint
+      ::acmi/t))

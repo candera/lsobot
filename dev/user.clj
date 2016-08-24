@@ -10,7 +10,7 @@
             [clojure.repl :refer :all]
             [clojure.pprint :refer [pprint]]))
 
-(def a8 (-> "TAPE0008.txt.acmi" slurp acmi/read-acmi))
+(def a8 (-> "acmi/TAPE0008.txt.acmi" slurp acmi/read-acmi))
 
 (defn carriers
   [file]
