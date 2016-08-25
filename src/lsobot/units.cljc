@@ -24,3 +24,7 @@
 (defn deg->rad
   [deg]
   (/ deg deg-per-rad))
+
+(defn kts->m-per-sec
+  [kts]
+  (* kts 0.514444))

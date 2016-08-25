@@ -503,20 +503,23 @@
        (* y' (/ y ay))]))))
 
 
-(let [path "/Users/candera/Downloads/Vinson 1 and 4 Wire/Ramp Strike.txt.acmi"
+(let [path "acmi/25 passes 4 AC.2.txt.acmi"
       file (-> path slurp acmi/read-acmi)
       passes (grading/passes file grading/default-parameters)]
   (for [[carrier-id pilot-passes] passes
         [pilot-id assessments] pilot-passes
         assessment assessments]
-    (printf "Carrier: %s, Pilot: %s, Time: %s\n"
-            carrier-id pilot-id (->> assessment
-                                     ::grading/frames
-                                     first
-                                     ::acmi/t
-                                     (time-str nil)))))
+    (printf "Carrier: %s, Pilot: %s, Time: %s, Result: %s\n"
+            (-> file ::acmi/frames last (acmi/entity carrier-id) ::acmi/name)
+            (-> file ::acmi/frames last (acmi/entity pilot-id) ::acmi/pilot)
+            (->> assessment
+                 ::grading/frames
+                 first
+                 ::acmi/t
+                 (time-str nil))
+            (::grading/result assessment))))
 
-(let [path "/Users/candera/Downloads/Vinson 1 and 4 Wire/Ramp Strike.txt.acmi"
+(let [path "acmi/Ramp Strike.txt.acmi"
       file (-> path slurp acmi/read-acmi)
       passes (grading/passes file grading/default-parameters)
       assessment (get-in passes ["2818779800000010" "2818779800000001" 2])]
@@ -525,8 +528,5 @@
        (mapcat ::acmi/events))
   (-> assessment
       ::grading/frames
-      (nth 244)
-      #_last
-      #_(acmi/entity "2818779800000001")
-      #_pprint
-      ::acmi/t))
+      (filterv #(< -519 (::downrange %) 276))
+      count))

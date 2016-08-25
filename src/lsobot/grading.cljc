@@ -40,16 +40,34 @@
    :recovery-skew 11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda          5      ; Seconds of data to keep after approach ends
-   :landing-point [-15 -313 74] ; x,y,z position in carrier
-                                ; coordinates zero where landing
+   :landing-point [-15 -313 74]       ; x,y,z position in carrier
+                                        ; coordinates zero where landing
                                         ; should aim. Feet.
-   :landing-window [50 150] ; width,length of the "window" around the
-                            ; landing point. This forms an imaginary
-                            ; box, inside of which everywhere is
-                            ; considered equivalent. Lining up on
-                            ; anywhere inside this box is considered
-                            ; equivalent to lining up on the landing
-                            ; point.
+   :landing-window [50 150]  ; width,length of the "window" around the
+                                        ; landing point. This forms an imaginary
+                                        ; box, inside of which everywhere is
+                                        ; considered equivalent. Lining up on
+                                        ; anywhere inside this box is considered
+                                        ; equivalent to lining up on the landing
+                                        ; point.
+   ;; Source: https://www.airwarriors.com/community/index.php?threads/carrier-dimensions.23820/
+   ;; -Interval between wires: 40 feet
+   ;; -Distance from 1 wire to ramp: 176 ft
+   ;; -Landing area width: 80 ft
+   ;; -Total length of landing area, from ramp to deck edge: 795 ft
+   ;; Landing point centers between 2- and 3-wire
+   :wire-interval 40                    ; Feet
+   :ramp-to-1-wire 176                  ; Feet
+   :landing-area-width 80               ; Feet
+   :landing-area-length 795             ; Feet
+   :trap-speed (units/kts->m-per-sec 20) ; Must slow to below this
+                                         ; speed to be considered to
+                                         ; have caught a wire. m/s
+
+   :touchdown-height 10        ; How high above the deck (in feet) the
+                                        ; aircraft has to be before it
+                                        ; is considered to be on the deck
+
    :glideslope    {:ideal 3.3
                    :good  {:low  3.1
                            :high 3.5}
@@ -92,7 +110,6 @@
                         :score 0}
    ::foul-deck-waveoff {:description "A pass that was aborted due to the landing area being ‘fouled’. No points are assigned, and the pass is not counted toward the pilot’s landing grade average."}
    ::incomplete        {:description "Insufficient data to determine the status of the pass."}})
-
 
 (defn bearing
   "Returns the bearing between two objects in degrees."
@@ -256,11 +273,13 @@
         :args nil ; TODO
         :ret (s/keys :req [::aoa]))
 
-(defn aoa-data
-  "Computes angle of attack and related quantities given two frames"
+(defn derived-data
+  "Computes angle of attack, speed, and other quantities given two frames"
   [params pilot-id f0 f1]
   (let [e0 (acmi/entity f0 pilot-id)
         e1 (acmi/entity f1 pilot-id)
+        t0 (::acmi/t f0)
+        t1 (::acmi/t f1)
         u0 (::acmi/u e0)
         u1 (::acmi/u e1)
         v0 (::acmi/v e0)
@@ -280,19 +299,65 @@
        ::path-a path-a
        ::pitch (::acmi/pitch e0)
        ::pilot e0
+       ::speed (/ (units/m->ft d) (- t1 t0)) ; Feet/sec
        ::aoa (let [value (- (::acmi/pitch e0) path-a)]
                {::value value
                 ::deviation (classify params value)})})))
+
+(defn result
+  "Compute the result of the pass - trap, bolter, etc."
+  [params frames]
+  ;; What was the height above the deck at which we passed through zero downrange?
+  (let [{:keys [wire-interval
+                ramp-to-1-wire
+                landing-area-width
+                landing-area-length
+                touchdown-height
+                trap-speed]} params
+        deck-downrange (+ ramp-to-1-wire (* 2.5 wire-interval))
+        deck-uprange (- (log/spy deck-downrange) (log/spy landing-area-length))
+        max-uprange (->> frames
+                         (mapv ::downrange)
+                         (reduce min))
+        min-speed (->> frames
+                       (mapv ::speed)
+                       (remove nil?)
+                       (reduce min))
+        deck-frames (->> frames
+                         (filterv #(< deck-uprange
+                                      (::downrange %)
+                                      deck-downrange)))
+        last-height (->> frames last ::height)
+        last-downrange (->> frames last ::downrange)
+        min-deck-height (when-not (empty? deck-frames)
+                          (->> deck-frames
+                               (mapv ::height)
+                               (reduce min)))]
+    ;; TODO: refine
+    (cond
+      (and (neg? last-height)
+           (pos? last-downrange)
+           (< last-downrange (+ 500 deck-downrange)))
+      :ramp-strike
+
+      (and min-deck-height
+           (< min-deck-height (:touchdown-height params)))
+      (if (< min-speed trap-speed)
+        :trap
+        :bolter)
+
+      :else
+      :waveoff)))
 
 (defn assess-pass
   "Perform any processing that can only happen once we have the whole
   pass. Returns the assessment."
   [params pilot-id frames]
   (let [augmented-frames (mapv (fn [f0 f1]
-                                 (merge f0 (aoa-data (:aoa params) pilot-id f0 f1)))
+                                 (merge f0 (derived-data (:aoa params) pilot-id f0 f1)))
                                frames
                                (drop 4 frames))]
-    {::result (rand-nth [:ramp-strike :bolter :waveoff :trap]) ; TODO
+    {::result (result params augmented-frames)
      ::frames augmented-frames}))
 
 (defn find-passes

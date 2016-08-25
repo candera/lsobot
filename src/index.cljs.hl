@@ -334,10 +334,6 @@ L30 1100")))
 (defn aoa-path
   "Returns SVG data that shows the AOA data"
   [params scale pass]
-  (log/debug "aoa-path"
-             :map? (map? pass)
-             :vector? (vector? pass)
-             :first-map? (-> pass first map?))
   (svg/g
    :attr {:class "aoa-data"}
    (let [frames (->> pass :assessment ::grading/frames)]
@@ -345,55 +341,50 @@ L30 1100")))
            :let [{:keys [::grading/aoa ::grading/t ::grading/downrange]} frame
                  {:keys [::grading/value ::grading/deviation]} aoa]
            :when (and aoa (pos? downrange))]
-       (do
-         (log/debug "aoa-data"
-                    :aoa aoa
-                    :t t
-                    :downrange downrange)
-         [(svg/circle
-           :attr {:class (deviation-classes "aoa-value " deviation)
-                  :t t}
-           :transform (gstring/format "translate(%f %f)"
-                                      downrange
-                                      (* scale value))
-           :cx 0
-           :cy 0
-           :r 25)
-          #_(let [pitch (-> frame ::grading/pilot ::acmi/pitch)]
-              (svg/circle
-               :attr {:class "pitch"
-                      "pitch" pitch}
-               :transform (gstring/format "translate (%f %f)"
-                                          downrange
-                                          (* scale pitch))
-               :cx 0
-               :cy 0
-               :r 25))
-          #_(svg/circle
-             :attr {:class "path-alpha"
-                    "path-alpha" path-a
-                    "altitude-change" (::grading/zd frame)
-                    "distance-change" (::grading/d frame)}
-             :transform (gstring/format "translate (%f %f)"
-                                        downrange
-                                        (* scale path-a))
-             :cx 0
-             :cy 0
-             :r 25)
-          #_(svg/circle
-             :attr {"smoothed-aoa" aoa
-                    "prior-aoa" prior-aoa
-                    :class (str "smoothed " (name (classify params aoa)))}
-             :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                        downrange
-                                        (* scale aoa)
-                                        (-> frame
-                                            ::grading/pilot
-                                            ::acmi/pitch
-                                            (* -1 pitch-exaggeration)))
-             :cx 0
-             :cy 0
-             :r 25)])))))
+       (svg/circle
+        :attr {:class (deviation-classes "aoa-value " deviation)
+               :t t}
+        :transform (gstring/format "translate(%f %f)"
+                                   downrange
+                                   (* scale value))
+        :cx 0
+        :cy 0
+        :r 25)
+       #_(let [pitch (-> frame ::grading/pilot ::acmi/pitch)]
+           (svg/circle
+            :attr {:class "pitch"
+                   "pitch" pitch}
+            :transform (gstring/format "translate (%f %f)"
+                                       downrange
+                                       (* scale pitch))
+            :cx 0
+            :cy 0
+            :r 25))
+       #_(svg/circle
+          :attr {:class "path-alpha"
+                 "path-alpha" path-a
+                 "altitude-change" (::grading/zd frame)
+                 "distance-change" (::grading/d frame)}
+          :transform (gstring/format "translate (%f %f)"
+                                     downrange
+                                     (* scale path-a))
+          :cx 0
+          :cy 0
+          :r 25)
+       #_(svg/circle
+          :attr {"smoothed-aoa" aoa
+                 "prior-aoa" prior-aoa
+                 :class (str "smoothed " (name (classify params aoa)))}
+          :transform (gstring/format "translate(%f %f) rotate(%f)"
+                                     downrange
+                                     (* scale aoa)
+                                     (-> frame
+                                         ::grading/pilot
+                                         ::acmi/pitch
+                                         (* -1 pitch-exaggeration)))
+          :cx 0
+          :cy 0
+          :r 25)))))
 
 (def elevation-exaggeration 4)
 
@@ -711,7 +702,7 @@ L30 1100")))
                  :value ""
                  "Select a carrier")])
              (for [[cid name] (->> (for [id carrier-ids]
-                                     [id (property acmi id "Name")])
+                                     [id (property acmi id ::acmi/name)])
                                    (sort-by second))]
                (option
                 :selected (= cid carrier-id)
@@ -953,7 +944,7 @@ L30 1100")))
                     :checked (formula-of
                               [selected-pass-index]
                               (= selected-pass-index index))))
-         (td (cell= (property carrier-id "Name")))
+         (td (cell= (property carrier-id ::acmi/name)))
          (td (cell= (property pilot-id ::acmi/pilot)))
          (td (cell= (time-str reference-time start))))))))
   )

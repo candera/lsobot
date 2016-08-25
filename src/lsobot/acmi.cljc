@@ -165,6 +165,7 @@
    "Type"         {:parse-as :taglist
                    :key ::object-type}
    "Parent"       {:key ::parent}
+   "Name"         {:key ::name}
    "Pilot"        {:key ::pilot}
    "Group"        {:key ::group}
    "Country"      {:key ::country}
