@@ -223,12 +223,61 @@ tr:nth-child(even) {
 .unacceptable {
     stroke: red;
     fill: red;
+    text-decoration: underline;
+}
+
+.assessment-symbol.minor::before {
+    content: "(";
+}
+
+.assessment-symbol.minor::after {
+    content: ")";
 }
 
 .ideal {
     stroke: white;
     fill: lime;
     stroke-width: 5;
+}
+
+#assessment {
+    display: flex;
+}
+
+#assessment-props {
+    width: 100%;
+}
+
+#zone-assessment {
+    margin-top: 7px
+}
+
+.zone-dim-label, .zone-label {
+    background: black;
+    color: white;
+    text-align: center;
+}
+
+.zone-dim-label {
+    min-width: 60px;
+}
+
+.zone-label {
+    writing-mode: vertical-lr;
+    display: block;
+    transform: rotate(180deg);
+    min-height: 50px;
+    min-width: 22px;
+}
+
+.zone-assessment-value {
+    text-align: center;
+    border-right: 1px dashed grey;
+    padding: 5px;
+}
+
+.zone-assessment-corner {
+    min-height: 22px;
 }
 
 .good {

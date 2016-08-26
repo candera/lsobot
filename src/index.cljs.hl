@@ -515,7 +515,7 @@ L30 1100")))
       :y 0
       (str x))]))
 
-(def aoa
+#_(def aoa
   (formula-of
    [selected-pass pass-parameters]
    (let [{:keys [west east fast slow aoa-aspect]} view-bounds
@@ -860,6 +860,32 @@ L30 1100")))
    :ramp-strike "Ramp Strike"
    :bolter "Bolter"})
 
+(def symbol-mapping
+  {::grading/aoa-deviations        {:low  "F"
+                                    :high "S"}
+   ::grading/glideslope-deviations {:low  "LO"
+                                    :high "H"}
+   ::grading/lineup-deviations     {:low  "LUR"
+                                    :high "LUL"}})
+
+(defn assessment-mark
+  [dimension deviation]
+  (let [{:keys [::grading/degree ::grading/direction]} deviation]
+    (if-not direction
+      ""
+      (let [mark (-> symbol-mapping dimension direction)]
+        (if (#{:ideal :good} degree)
+          ""
+          mark)))))
+
+(defn assessment-symbol
+  [dimension deviation]
+  (span
+   :class ["assessment-symbol"
+           (some-> deviation ::grading/degree name)
+           (some-> deviation ::grading/direction name)]
+   (assessment-mark dimension deviation)))
+
 (defn assessment
   "Returns UI for the assessment section"
   [pass]
@@ -867,30 +893,54 @@ L30 1100")))
    :id "assessment"
    (legend "Assessment (Not working yet)")
    (table
+    :id "assessment-props"
     (tr (td "Result")
-        (td (formula-of [selected-pass]
-                        (-> selected-pass
+        (td (formula-of [pass]
+                        (-> pass
                             :assessment
                             ::grading/result
-                            (result-text "No Result")))) ;; Trap, waveoff, bolter, crash
-        )
+                            (result-text "No Result")))))
     (tr (td "Overall grade") (td "OMG"))
     (tr (td "Wire") (td "3"))
     (tr (td "Called ball?") (td (input :type "checkbox")))
     (tr (td "Difficult conditions?") (td (input :type "checkbox"))))
-   (for [distance ["Start" "Mid" "In Close" "At the Ramp"]]
-     (div
-      (div distance)
-      (table
-       (tr
-        (td "AoA")
-        (td "Little fast"))
-       (tr
-        (td "Glideslope")
-        (td "OK"))
-       (tr
-        (td "Lineup")
-        (td "Left")))))))
+   (let [zones [::grading/start
+                ::grading/mid
+                ::grading/in-close
+                ::grading/at-ramp]
+         zone-label {::grading/start "X"
+                     ::grading/mid "IM"
+                     ::grading/in-close "IC"
+                     ::grading/at-ramp "AR"}
+         dimensions [::grading/glideslope-deviations
+                     ::grading/aoa-deviations
+                     ::grading/lineup-deviations]
+         dimension-label {::grading/glideslope-deviations "Glideslope"
+                          ::grading/aoa-deviations "AoA"
+                          ::grading/lineup-deviations "Lineup"}]
+     (table
+      :id "zone-assessment"
+      (tr
+       (th :class "zone-label zone-dim-label zone-assessment-corner" "")
+       (for [dim dimensions]
+         (th :class "zone-dim-label" (dimension-label dim))))
+      (for [zone zones]
+        (tr
+         (td :class "zone-label" (zone-label zone))
+         (for [dim dimensions]
+           (td
+            :class "zone-assessment-value"
+            (formula-of
+             [pass]
+             (div
+              :class (name dim)
+              (if-not (= zone ::grading/start)
+                "N/I"
+                (->> pass
+                     :assessment
+                     zone
+                     dim
+                     (map #(assessment-symbol dim %))))))))))))))
 
 (def keymap {97 :a
              98 :b
@@ -954,7 +1004,7 @@ L30 1100")))
     (assessment selected-pass))
    (div
     :id "graphs"
-    (div
+    #_(div
      (div :class "graph-label" "AoA")
      aoa)
     (div

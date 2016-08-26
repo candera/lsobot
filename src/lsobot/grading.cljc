@@ -12,6 +12,41 @@
   #?(:cljs (:require-macros [lsobot.spec :as s]
                             [lsobot.spec-gen :as sgen])))
 
+;;; Specs
+(s/def ::slope float?)
+(s/def ::distance float?)
+(s/def ::course-deviation float?)
+(s/def ::result #{:trap :bolter :waveoff :ramp-strike})
+(def frame (s/keys :req [::slope
+                         ::distance
+                         ::course-deviation
+                         ::acmi/entities
+                         ::acmi/t
+                         ::acmi/events]))
+
+(def frames (s/spec (s/* frame)))
+(s/def ::frames frames)
+
+(s/def ::direction (s/nilable #{:low :high}))
+(s/def ::degree #{:ideal :good :minor :major :unacceptable})
+(def deviation (s/keys :req [::direction ::degree]))
+(s/def ::deviation deviation)
+(s/def ::deviations (s/spec (s/* deviation)))
+
+(s/def ::aoa (s/keys :req [::value ::deviation]))
+
+(def deviations (s/spec (s/* deviation)))
+(s/def ::aoa-deviations deviations)
+(s/def ::glideslope-deviations deviations)
+(s/def ::lineup-deviations deviations)
+(def comments (s/keys :req [::aoa-deviations
+                            ::glideslope-deviations
+                            ::lineup-deviations]))
+
+(s/def ::start comments)
+
+(def assessment (s/keys :req [::result ::frames ::start]))
+
 ;; Landing coordinates:
 ;; x indicates cross-track error. Negative left.
 ;; y indicates downrange distance. Postive downrange (approaching the
@@ -56,13 +91,13 @@
    ;; -Landing area width: 80 ft
    ;; -Total length of landing area, from ramp to deck edge: 795 ft
    ;; Landing point centers between 2- and 3-wire
-   :wire-interval 40                    ; Feet
-   :ramp-to-1-wire 176                  ; Feet
-   :landing-area-width 80               ; Feet
-   :landing-area-length 795             ; Feet
+   :wire-interval 40                      ; Feet
+   :ramp-to-1-wire 176                    ; Feet
+   :landing-area-width 80                 ; Feet
+   :landing-area-length 795               ; Feet
    :trap-speed (units/kts->ft-per-sec 40) ; Must slow to below this
-                                         ; speed to be considered to
-                                         ; have caught a wire. m/s
+                                        ; speed to be considered to
+                                        ; have caught a wire. m/s
 
    :touchdown-height 10        ; How high above the deck (in feet) the
                                         ; aircraft has to be before it
@@ -88,7 +123,15 @@
                    :minor {:low  -2
                            :high 2}
                    :major {:low  -3
-                           :high 3}}})
+                           :high 3}}
+   :zones {:start        {:distance (units/nm->ft 0.75)}
+           :mid          {:distance (units/nm->ft 0.25)}
+           :in-close     {:distance (units/nm->ft 0.1)}
+           ;; Ramp distance is automatically the end of the carrier
+           ;; until touchdown
+           :at-ramp      {}
+           ;; In the wires from touchdown until stopped
+           :in-the-wires {}}})
 
 (def grades
   {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
@@ -132,11 +175,6 @@
      (+ (* y (Math/cos theta))
         (* x (Math/sin theta)))
      z]))
-
-(s/def ::direction (s/nilable #{:low :high}))
-(s/def ::degree #{:ideal :good :minor :major :unacceptable})
-(def deviation (s/keys :req [::direction ::degree]))
-(s/def ::deviation deviation)
 
 (s/fdef classify
         :args nil ; todo
@@ -267,8 +305,6 @@
                 :distance d
                 :pass-frame pass-frame}))))))
 
-(s/def ::aoa (s/keys :req [::value ::deviation]))
-
 (s/fdef aoa-data
         :args nil ; TODO
         :ret (s/keys :req [::aoa]))
@@ -347,15 +383,40 @@
       :else
       :waveoff)))
 
+(s/fdef assess-start
+        :args frames
+        :ret comments)
+
+(defn assess-start
+  "Returns assessment of start"
+  [params frames]
+  (let [dist (-> params
+                 :zones
+                 :start
+                 :distance)
+        frame (->> frames
+                   (filterv #(< (::downrange %) dist))
+                   first)]
+    {::aoa-deviations [(-> frame ::aoa ::deviation)]
+     ::glideslope-deviations [(-> frame ::glideslope ::deviation)]
+     ::lineup-deviations [(-> frame ::lineup ::deviation)]}))
+
+(defn augment-frames
+  "Augment the pass frames with any data that has to be derived from
+  the sequence."
+  [params pilot-id frames]
+  (mapv (fn [f0 f1]
+          (merge f0 (derived-data (:aoa params) pilot-id f0 f1)))
+        frames
+        (drop 4 frames)))
+
 (defn assess-pass
   "Perform any processing that can only happen once we have the whole
   pass. Returns the assessment."
   [params pilot-id frames]
-  (let [augmented-frames (mapv (fn [f0 f1]
-                                 (merge f0 (derived-data (:aoa params) pilot-id f0 f1)))
-                               frames
-                               (drop 4 frames))]
+  (let [augmented-frames (augment-frames params pilot-id frames)]
     {::result (result params augmented-frames)
+     ::start (assess-start params augmented-frames)
      ::frames augmented-frames}))
 
 (defn find-passes
@@ -425,20 +486,6 @@
 
 (def carrier-id acmi/id)
 (def pilot-id acmi/id)
-(s/def ::slope float?)
-(s/def ::distance float?)
-(s/def ::course-deviation float?)
-(s/def ::result #{:trap :bolter :waveoff :ramp-strike})
-(def frame (s/keys :req [::slope
-                         ::distance
-                         ::course-deviation
-                         ::acmi/entities
-                         ::acmi/t
-                         ::acmi/events]))
-
-(s/def ::frames (s/spec (s/* frame)))
-
-(def assessment (s/keys :req [::result ::frames]))
 
 (s/fdef passes
         :args acmi/file

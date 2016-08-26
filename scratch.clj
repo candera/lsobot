@@ -530,3 +530,25 @@
       ::grading/frames
       (filterv #(< -519 (::downrange %) 276))
       count))
+
+(let [path "acmi/25 passes 4 AC.2.txt.acmi"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/passes file grading/default-parameters)
+      dist (-> grading/default-parameters
+               :zones
+               :start
+               :distance)]
+  (->> (for [[carrier-id pilot-passes] passes
+             [pilot-id assessments] pilot-passes
+             assessment assessments]
+         (->> assessment
+              ::grading/frames
+              (filterv #(< (::grading/downrange %) dist))
+              first))
+       first
+       ::grading/aoa
+       ::grading/deviation))
+
+(report "acmi/25 passes 4 AC.2.txt.acmi")
+
+
