@@ -398,13 +398,55 @@ L30 1100")))
                    ::grading/glideslope
                    ::acmi/t]} frame
            {:keys [::grading/value ::grading/deviation]} glideslope]
-       (svg/circle
-        :attr {:glideslope value
-               :t t
-               :class (deviation-classes "glideslope-data" deviation)}
-        :cx downrange
-        :cy (* elevation-exaggeration height)
-        :r 25)))))
+       [(svg/circle
+         :attr {:glideslope value
+                :t t
+                :class (deviation-classes "glideslope-data" deviation)
+                #_(deviation-classes "glideslope-data" (-> frame
+                                                           ::grading/aoa
+                                                           ::grading/deviation))
+                }
+         :cx downrange
+         :cy (* elevation-exaggeration height)
+         :r 25)
+        (if (neg? downrange)
+          []
+          (svg/g
+           :transform (gstring/format "translate(%f %f)"
+                                      downrange
+                                      (+ (* 100 (-> frame ::grading/aoa ::grading/value (- 8.1)))
+                                         (* elevation-exaggeration height)))
+           (svg/circle
+            :attr {:class (deviation-classes "aoa-deviation"
+                                             (-> frame
+                                                 ::grading/aoa
+                                                 ::grading/deviation))}
+            :cx 0
+            :cy 0
+            :r 10)
+           #_(svg/rect
+              :attr {:class (deviation-classes "aoa-deviation" (-> frame
+                                                                   ::grading/aoa
+                                                                   ::grading/deviation))}
+              :x downrange
+              :y (+ -7
+                    (* 100 (-> frame ::grading/aoa ::grading/value (- 8.1)))
+                    (* elevation-exaggeration height))
+              :width 10
+              :height 25
+              )
+
+           #_(svg/line
+              :attr {:class (deviation-classes "aoa-deviation" (-> frame
+                                                                   ::grading/aoa
+                                                                   ::grading/deviation))
+                     #_:stroke #_"white"
+                     :stroke-width "8"}
+              :x1 downrange
+              :x2 downrange
+              :y1 (* elevation-exaggeration height)
+              :y2 (+ (* 100 (-> frame ::grading/aoa ::grading/value (- 8.1)))
+                     (* elevation-exaggeration height)))))]))))
 
 (let [angular-exaggeration 2
       x1 (units/deg->rad 4)
@@ -442,6 +484,7 @@ L30 1100")))
      (let [{:keys [::grading/downrange
                    ::grading/lineup
                    ::grading/crosstrack-error
+                   ::grading/speed
                    ::acmi/t]} frame
            {:keys [::grading/value ::grading/deviation]} lineup
            [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
@@ -449,6 +492,7 @@ L30 1100")))
        (svg/circle
         :attr {:lineup value
                :t t
+               :speed speed
                :class (deviation-classes "lineup-data" deviation)}
         :cx (if (pos? downrange) downrange* downrange)
         :cy (if (pos? downrange) crosstrack* crosstrack-error)

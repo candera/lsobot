@@ -60,7 +60,7 @@
    :ramp-to-1-wire 176                  ; Feet
    :landing-area-width 80               ; Feet
    :landing-area-length 795             ; Feet
-   :trap-speed (units/kts->m-per-sec 20) ; Must slow to below this
+   :trap-speed (units/kts->ft-per-sec 40) ; Must slow to below this
                                          ; speed to be considered to
                                          ; have caught a wire. m/s
 
@@ -292,17 +292,15 @@
         path-a (units/rad->deg (Math/atan2 (- z1 z0) d))]
     ;; Sometime a frame updates because something other than position
     ;; changes. In which case, we can't compute a meaninful AOA.
-    (if (= [u1 v1] [u0 v0])
-      {}
-      {::zd (- z1 z0)
-       ::d d
-       ::path-a path-a
-       ::pitch (::acmi/pitch e0)
-       ::pilot e0
-       ::speed (/ (units/m->ft d) (- t1 t0)) ; Feet/sec
-       ::aoa (let [value (- (::acmi/pitch e0) path-a)]
-               {::value value
-                ::deviation (classify params value)})})))
+    {::zd (- z1 z0)
+     ::d d
+     ::path-a path-a
+     ::pitch (::acmi/pitch e0)
+     ::pilot e0
+     ::speed (/ (units/m->ft d) (- t1 t0)) ; Feet/sec
+     ::aoa (let [value (- (::acmi/pitch e0) path-a)]
+             {::value value
+              ::deviation (classify params value)})}))
 
 (defn result
   "Compute the result of the pass - trap, bolter, etc."
@@ -315,7 +313,7 @@
                 touchdown-height
                 trap-speed]} params
         deck-downrange (+ ramp-to-1-wire (* 2.5 wire-interval))
-        deck-uprange (- (log/spy deck-downrange) (log/spy landing-area-length))
+        deck-uprange (- deck-downrange landing-area-length)
         max-uprange (->> frames
                          (mapv ::downrange)
                          (reduce min))

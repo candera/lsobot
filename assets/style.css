@@ -152,6 +152,10 @@ tr:nth-child(even) {
     /* padding-right: 3px; */
 }
 
+#aoa {
+    display: none;
+}
+
 .carrier {
     fill: red;
 }
@@ -339,4 +343,16 @@ tr:nth-child(even) {
 
 /* #elevation { */
 /*     left: 60%; */
+/* } */
+
+/* .glideslope-data.low { */
+/*     fill: red; */
+/* } */
+
+/* .glideslope-data.high { */
+/*     fill:lime; */
+/* } */
+
+/* .glideslope-data.good { */
+/*     fill: yellow; */
 /* } */

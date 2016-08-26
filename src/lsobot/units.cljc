@@ -28,3 +28,8 @@
 (defn kts->m-per-sec
   [kts]
   (* kts 0.514444))
+
+(defn kts->ft-per-sec
+  [kts]
+  (* kts 1.68781))
+
