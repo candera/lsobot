@@ -2,6 +2,6 @@
 ;;; For more information see (info "(emacs) Directory Variables")
 
 ((clojure-mode
-  (use-inf-clojure-program . "boot repl")
+  (use-inf-clojure-program . "nc localhost 5555")
   (inf-clojure-buffer . "lsobot-repl")
   (use-inf-clojure . t)))

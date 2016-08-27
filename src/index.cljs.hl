@@ -28,11 +28,13 @@
 
 (defc loading? false)
 
+(defc selected-pass nil)
+
 ;; Looks like:
 #_{:carrier-id "id-or-nil"
    :pilot-id "id-or-nil"
    :index "index-or-nil"}
-(defc selected-pass-descriptor nil)
+#_(defc selected-pass-descriptor nil)
 
 (defn get-passes
   [acmi params]
@@ -58,20 +60,20 @@
       second
       ::acmi/entities))
 
-(defformula selected-pass
+#_(defformula selected-pass
   [selected-pass-descriptor passes]
   (let [{:keys [index]} selected-pass-descriptor]
     (when index
       (nth passes (long index)))))
 
-(defn change-pass
+#_(defn change-pass
   [index]
   (swap! selected-pass-descriptor
          assoc
          :index
          index))
 
-(defn change-pilot
+#_(defn change-pilot
   [pilot-id]
   (let [indexes (->> @passes
                      (filter #(= (:carrier-id @selected-pass-descriptor)
@@ -87,7 +89,7 @@
     (when (= 1 (count indexes))
       (change-pass (first indexes)))))
 
-(defn change-carrier
+#_(defn change-carrier
   [carrier-id]
   (let [pilot-ids (->> @passes
                        (filter #(= carrier-id (:carrier-id %)))
@@ -98,7 +100,7 @@
     (when (= 1 (count pilot-ids))
       (change-pilot (first pilot-ids)))))
 
-(defn update-pass
+#_(defn update-pass
   "Change to a new pass, altering the current pass number by f."
   [f]
   (when-not (empty? @passes)
@@ -114,12 +116,24 @@
 (defn next-pass
   "Moves to the next pass in the list, if there is one."
   []
-  (update-pass inc))
+  (cond
+    (empty? @passes) nil
+    (nil? @selected-pass) (reset! selected-pass (first @passes))
+    (= @selected-pass (last @passes)) nil
+    :else (reset! selected-pass (->> @passes
+                                     (drop-while #(not= @selected-pass %))
+                                     second))))
 
 (defn prev-pass
   "Moves to the previous pass in the list, if ther eis one"
   []
-  (update-pass dec))
+  (cond
+    (empty? @passes) nil
+    (nil? @selected-pass) (reset! selected-pass (last @passes))
+    (= @selected-pass (first @passes)) nil
+    :else (reset! selected-pass (->> @passes
+                                     (take-while #(not= @selected-pass %))
+                                     last))))
 
 ;;; Utilities
 
@@ -165,7 +179,8 @@
                            (let [contents (-> % .-target .-result)]
                              (dosync
                               (reset! acmi (acmi/read-acmi contents))
-                              (let [carrier-ids (->>  @passes
+                              (reset! selected-pass nil)
+                              #_(let [carrier-ids (->>  @passes
                                                       (map :carrier-id)
                                                       distinct)]
                                 (when (= 1 (count carrier-ids))
@@ -728,7 +743,7 @@ L30 1100")))
        :cy 0
        :r 20)))))
 
-(def carrier-select-ui
+#_(def carrier-select-ui
   [(label :for "carrier-select" "Carrier:")
    (formula-of
     [acmi passes selected-pass-descriptor]
@@ -753,7 +768,7 @@ L30 1100")))
                 :value cid
                 name))))))])
 
-(def pilot-select-ui
+#_(def pilot-select-ui
   [(label :for "pilot-select" "Pilot:")
    (formula-of
     [acmi passes selected-pass-descriptor]
@@ -780,7 +795,7 @@ L30 1100")))
                 :value pid
                 name))))))])
 
-(def pass-select-ui
+#_(def pass-select-ui
   [(label :for "pass-select" "Pass starting at:")
    (formula-of
     [acmi passes selected-pass-descriptor]
@@ -804,7 +819,7 @@ L30 1100")))
                 :value (-> pass :index str)
                 (time-str acmi (:start pass))))))))])
 
-(def pass-selection-ui
+#_(def pass-selection-ui
   (fieldset
    :id "pass-selection-section"
    (legend "Pass selection")
@@ -882,65 +897,179 @@ L30 1100")))
   [dimension deviation]
   (span
    :class ["assessment-symbol"
-           (some-> deviation ::grading/degree name)
-           (some-> deviation ::grading/direction name)]
+           (or (some-> deviation ::grading/degree name) "")
+           (or (some-> deviation ::grading/direction name) "")]
    (assessment-mark dimension deviation)))
+
+(defn not-implemented-cell
+  [assessment]
+  "-")
+
+(defn grade-cell
+  [assessment]
+  (case (-> assessment ::grading/result)
+    :bolter "B"
+    :waveoff "WO"
+    ""))
+
+(def aw-cell not-implemented-cell)
+
+(defn x-cell
+  [assessment]
+  (for [dimension [::grading/glideslope-deviations
+                   ::grading/aoa-deviations
+                   ;; TODO: Move lineup to lineup column
+                   ;; ::grading/lineup-deviations
+                   ]
+        deviation (get-in assessment [::grading/start dimension])]
+    (assessment-symbol dimension deviation)))
+
+(def im-cell not-implemented-cell)
+(def ic-cell not-implemented-cell)
+(def ar-cell not-implemented-cell)
+(def power-cell not-implemented-cell)
+(def att-cell not-implemented-cell)
+(def lineup-and-wing-cell not-implemented-cell)
+
+(defn wire-cell
+  [assessment]
+  (case (-> assessment ::grading/result)
+    :bolter "B"
+    :waveoff "WO"
+    ""))
+
+(defn remarks-cell
+  [assessment]
+  (case (-> assessment ::grading/result)
+    :trap "Trap"
+    :ramp-strike "Ramp strike"
+    ""))
 
 (defn assessment
   "Returns UI for the assessment section"
-  [pass]
-  (fieldset
-   :id "assessment"
-   (legend "Assessment (Not working yet)")
-   (table
-    :id "assessment-props"
-    (tr (td "Result")
-        (td (formula-of [pass]
-                        (-> pass
-                            :assessment
-                            ::grading/result
-                            (result-text "No Result")))))
-    (tr (td "Overall grade") (td "OMG"))
-    (tr (td "Wire") (td "3"))
-    (tr (td "Called ball?") (td (input :type "checkbox")))
-    (tr (td "Difficult conditions?") (td (input :type "checkbox"))))
-   (let [zones [::grading/start
-                ::grading/mid
-                ::grading/in-close
-                ::grading/at-ramp]
-         zone-label {::grading/start "X"
-                     ::grading/mid "IM"
-                     ::grading/in-close "IC"
-                     ::grading/at-ramp "AR"}
-         dimensions [::grading/glideslope-deviations
-                     ::grading/aoa-deviations
-                     ::grading/lineup-deviations]
-         dimension-label {::grading/glideslope-deviations "Glideslope"
-                          ::grading/aoa-deviations "AoA"
-                          ::grading/lineup-deviations "Lineup"}]
+  [passes selected-pass]
+  (table
+   :id "assessments"
+   (thead
+    (tr
+     :class "header-1"
+     (th :class "blank" :colspan 4)
+     (th :class "gs-speed-errors" :colspan 6 "Glideslope and Speed Errors")
+     (th :class "control-errors" :colspan 2 "Control Errors")
+     (th :class "lineup-and-wing" :rowspan 2 "Lineup & Wing")
+     (th :class "wire" :rowspan 2 "Wire #")
+     (th :class "remarks" :rowspan 2 "Remarks"))
+    (tr
+     :class "header-2"
+     (th :class "select" "")
+     (th :class "carrier"  "Carrier")
+     (th :class "pilot"  "Pilot")
+     (th :class "start" "Time")
+     (th :class "grade" "Grade")
+     (th :class "aw" "AW")
+     (th :class "x" "X")
+     (th :class "im" "IM")
+     (th :class "ic" "IC")
+     (th :class "ar" "AR")
+     (th :class "power" "Power")
+     (th :class "att" "ATT")))
+   (tbody
+    (let [selected-pass-cell selected-pass]
+      (formula-of
+       [passes selected-pass]
+       (if (empty? passes)
+         (tr (td :class "none-loaded" :colspan 15 "No Passes Detected"))
+         (for [pass passes
+               :let [{:keys [carrier-id pilot-id index assessment]} pass
+                     frames (::grading/frames assessment)
+                     td+ (fn [class cell-f]
+                           (td :class (str class " assessment-cell")
+                               (cell-f assessment)))]]
+           (tr
+            (td+ "select"
+                 (constantly
+                  (input :type "radio"
+                         :name "pass"
+                         :click #(reset! selected-pass-cell pass)
+                         :checked (= selected-pass pass))))
+            (td+ "carrier"
+                 (constantly
+                  (-> frames
+                      last
+                      (acmi/entity carrier-id)
+                      ::acmi/name)))
+            (td+ "pilot"
+                 (constantly
+                  (-> frames
+                      last
+                      (acmi/entity pilot-id)
+                      ::acmi/pilot)))
+            (td+ "start"
+                 (constantly
+                  (->> pass :start (time-str nil))))
+            (td+ "grade" grade-cell)
+            (td+ "aw" aw-cell)
+            (td+ "x" x-cell)
+            (td+ "im" im-cell)
+            (td+ "ic" ic-cell)
+            (td+ "ar" ar-cell)
+            (td+ "power" power-cell)
+            (td+ "att" att-cell)
+            (td+ "lineup-and-wing" lineup-and-wing-cell)
+            (td+ "wire" wire-cell)
+            (td+ "remarks" remarks-cell))))))))
+  #_(fieldset
+     :id "assessment"
+     (legend "Assessment (Not working yet)")
      (table
-      :id "zone-assessment"
-      (tr
-       (th :class "zone-label zone-dim-label zone-assessment-corner" "")
-       (for [dim dimensions]
-         (th :class "zone-dim-label" (dimension-label dim))))
-      (for [zone zones]
+      :id "assessment-props"
+      (tr (td "Result")
+          (td (formula-of [pass]
+                          (-> pass
+                              :assessment
+                              ::grading/result
+                              (result-text "No Result")))))
+      (tr (td "Overall grade") (td "OMG"))
+      (tr (td "Wire") (td "3"))
+      (tr (td "Called ball?") (td (input :type "checkbox")))
+      (tr (td "Difficult conditions?") (td (input :type "checkbox"))))
+     (let [zones [::grading/start
+                  ::grading/mid
+                  ::grading/in-close
+                  ::grading/at-ramp]
+           zone-label {::grading/start "X"
+                       ::grading/mid "IM"
+                       ::grading/in-close "IC"
+                       ::grading/at-ramp "AR"}
+           dimensions [::grading/glideslope-deviations
+                       ::grading/aoa-deviations
+                       ::grading/lineup-deviations]
+           dimension-label {::grading/glideslope-deviations "Glideslope"
+                            ::grading/aoa-deviations "AoA"
+                            ::grading/lineup-deviations "Lineup"}]
+       (table
+        :id "zone-assessment"
         (tr
-         (td :class "zone-label" (zone-label zone))
+         (th :class "zone-label zone-dim-label zone-assessment-corner" "")
          (for [dim dimensions]
-           (td
-            :class "zone-assessment-value"
-            (formula-of
-             [pass]
-             (div
-              :class (name dim)
-              (if-not (= zone ::grading/start)
-                "N/I"
-                (->> pass
-                     :assessment
-                     zone
-                     dim
-                     (map #(assessment-symbol dim %))))))))))))))
+           (th :class "zone-dim-label" (dimension-label dim))))
+        (for [zone zones]
+          (tr
+           (td :class "zone-label" (zone-label zone))
+           (for [dim dimensions]
+             (td
+              :class "zone-assessment-value"
+              (formula-of
+               [pass]
+               (div
+                :class (name dim)
+                (if-not (= zone ::grading/start)
+                  "N/I"
+                  (->> pass
+                       :assessment
+                       zone
+                       dim
+                       (map #(assessment-symbol dim %))))))))))))))
 
 (def keymap {97 :a
              98 :b
@@ -978,41 +1107,39 @@ L30 1100")))
   (link :href "style.css" :rel "stylesheet" :title "main" :type "text/css")
   (link :href "https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300"
         :rel "stylesheet"
+        :type "text/css")
+  (link :href "https://fonts.googleapis.com/css?family=Kalam"
+        :rel "stylesheet"
         :type "text/css"))
  (body
   :id "body"
   ;;:keypress keypress
   titlebar
+  (if-tpl loading?
+    [(div
+      :id "loading-placeholder"
+      (span
+       :id "loading-placeholder-message"
+       "Loading...")
+      (img :id "spinner" :src "images/spinner.gif"))]
+    (button :id "load-button" :click load-acmi "Load ACMI"))
+  (formula-of
+   [acmi]
+   (if-not acmi
+     (div "No ACMI file loaded")
+     []))
+  (assessment passes selected-pass)
   (div
-   :id "content"
+   :id "graphs"
+   #_(div
+      (div :class "graph-label" "AoA")
+      aoa)
    (div
-    :id "sidebar"
-    (if-tpl loading?
-      [(div
-        :id "loading-placeholder"
-        (span
-         :id "loading-placeholder-message"
-         "Loading...")
-        (img :id "spinner" :src "images/spinner.gif"))]
-      (button :id "load-button" :click load-acmi "Load ACMI"))
-    (formula-of
-     [acmi passes selected-pass]
-     (cond
-       (not acmi) (div "No ACMI file loaded")
-       (empty? passes) (div "No passes detected in loaded ACMI")
-       :else [pass-selection-ui]))
-    (assessment selected-pass))
+    (div :class "graph-label" "Glideslope")
+    elevation)
    (div
-    :id "graphs"
-    #_(div
-     (div :class "graph-label" "AoA")
-     aoa)
-    (div
-     (div :class "graph-label" "Glideslope")
-     elevation)
-    (div
-     (div :class "graph-label" "Lineup")
-     plan)))))
+    (div :class "graph-label" "Lineup")
+    plan))))
 
 ;; Keypresses handler was getting registered more than once when the
 ;; code would reload, which is super annoying.

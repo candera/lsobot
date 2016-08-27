@@ -14,6 +14,7 @@ body {
 
 #content {
     display: flex;
+    flex-direction: column;
 }
 
 #titlebar {
@@ -86,7 +87,7 @@ body {
 }
 
 #load-button {
-    align-self: center;
+    align-self: flex-start;
 }
 
 #pass-selection-section select {
@@ -120,21 +121,13 @@ body {
     padding-right: 7px;
 }
 
-thead {
-    font-weight: 800;
-    background: black;
-    color: white;
-    border: 0px;
-}
-
-
 table {
     border: 1px solid black;
     border-collapse: collapse;
 }
 
 tr:nth-child(even) {
-    background: #F2F0E0;
+    /* background: #F2F0E0; */
 }
 
 #loading-placeholder {
@@ -226,12 +219,34 @@ tr:nth-child(even) {
     text-decoration: underline;
 }
 
+#assessments td,
+#assessments th {
+    border: solid 1px black;
+    vertical-align: bottom;
+    padding: 3px;
+}
+
 .assessment-symbol.minor::before {
     content: "(";
 }
 
 .assessment-symbol.minor::after {
     content: ")";
+}
+
+.assessment-cell {
+    text-align: center;
+    font-family: 'Kalam', cursive;
+}
+
+.assessment-cell.carrier,
+.assessment-cell.pilot,
+.assessment-cell.start {
+    font-family: 'Open Sans Condensed', sans-serif;
+}
+
+span.assessment-symbol {
+    margin-left: 3px;
 }
 
 .ideal {
@@ -250,6 +265,22 @@ tr:nth-child(even) {
 
 #zone-assessment {
     margin-top: 7px
+}
+
+#assessments {
+    /* font-family: 'Kalam', cursive; */
+    margin-top: 10px;
+    margin-bottom: 30px;
+    background-color: #fdfdf7;
+}
+
+.header-1,.header-2 {
+    /* font-family: initial; */
+}
+
+.header-1 th,
+.header-2 th {
+    min-width: 20px;
 }
 
 .zone-dim-label, .zone-label {

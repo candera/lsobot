@@ -528,8 +528,9 @@
        (mapcat ::acmi/events))
   (-> assessment
       ::grading/frames
-      (filterv #(< -519 (::downrange %) 276))
-      count))
+      last
+      (acmi/entity "2818779800000010")
+      ::acmi/name))
 
 (let [path "acmi/25 passes 4 AC.2.txt.acmi"
       file (-> path slurp acmi/read-acmi)
