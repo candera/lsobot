@@ -605,30 +605,43 @@ L30 1100")))
                                     :high "S"}
    ::grading/glideslope-deviations {:low  "LO"
                                     :high "H"}
-   ::grading/lineup-deviations     {:low  "LUR"
-                                    :high "LUL"}})
+   ::grading/lineup-deviations     {:low  "LUL"
+                                    :high "LUR"}})
+
+(def phase-symbol
+  {::grading/start "X"
+   ::grading/mid "IM"
+   ::grading/in-close "IC"
+   ::grading/at-ramp "AR"})
 
 (defn assessment-mark
-  [dimension deviation]
-  (let [{:keys [::grading/degree ::grading/direction]} deviation]
-    (if-not direction
-      ""
-      (let [mark (-> symbol-mapping dimension direction)]
-        (if (#{:ideal :good} degree)
-          ""
-          mark)))))
+  ([dimension deviation] (assessment-mark dimension deviation nil))
+  ([dimension deviation phase]
+   (let [{:keys [::grading/degree ::grading/direction]} deviation]
+     (if-not direction
+       ""
+       (let [mark (-> symbol-mapping dimension direction)
+             mark (if phase
+                    (str mark (phase-symbol phase))
+                    mark)]
+         (if (#{:ideal :good} degree)
+           ""
+           mark))))))
 
 (defn assessment-symbol
-  [dimension deviation]
-  (span
-   :class ["assessment-symbol"
-           (or (some-> deviation ::grading/degree name) "")
-           (or (some-> deviation ::grading/direction name) "")]
-   (assessment-mark dimension deviation)))
+  ([dimension deviation]
+   (assessment-symbol dimension deviation nil))
+  ([dimension deviation phase]
+   (span
+    :class ["assessment-symbol"
+            (or (some-> deviation ::grading/degree name) "")
+            (or (some-> deviation ::grading/direction name) "")
+            (or (some-> phase name) "")]
+    (assessment-mark dimension deviation phase))))
 
 (defn not-implemented-cell
-  [assessment]
-  "-")
+    [assessment]
+    "-")
 
 (defn grade-cell
   [assessment]
@@ -654,7 +667,11 @@ L30 1100")))
 (def ar-cell not-implemented-cell)
 (def power-cell not-implemented-cell)
 (def att-cell not-implemented-cell)
-(def lineup-and-wing-cell not-implemented-cell)
+(defn lineup-and-wing-cell
+  [assessment]
+  (for [phase [::grading/start]
+        deviation (get-in assessment [::grading/start ::grading/lineup-deviations])]
+    (assessment-symbol ::grading/lineup-deviations deviation phase)))
 
 (defn wire-cell
   [assessment]
@@ -693,7 +710,7 @@ L30 1100")))
             "Only show selected pass")))))
      (th :class "gs-speed-errors" :colspan 6 "Glideslope and Speed Errors")
      (th :class "control-errors" :colspan 2 "Control Errors")
-     (th :class "lineup-and-wing" :rowspan 2 "Lineup & Wing")
+     (th :class "lineup-and-wing" :rowspan 2 "Lineup " (br) "& Wing")
      (th :class "wire" :rowspan 2 "Wire #")
      (th :class "remarks" :rowspan 2 "Remarks"))
     (tr

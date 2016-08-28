@@ -226,6 +226,7 @@ tr:nth-child(even) {
     padding: 3px;
 }
 
+
 .assessment-symbol.minor::before {
     content: "(";
 }
