@@ -249,6 +249,10 @@ span.assessment-symbol {
     margin-left: 3px;
 }
 
+#limit-pass-display {
+    margin: auto;
+}
+
 .ideal {
     stroke: white;
     fill: lime;

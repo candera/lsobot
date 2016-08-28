@@ -30,11 +30,7 @@
 
 (defc selected-pass nil)
 
-;; Looks like:
-#_{:carrier-id "id-or-nil"
-   :pilot-id "id-or-nil"
-   :index "index-or-nil"}
-#_(defc selected-pass-descriptor nil)
+(defc limit-displayed-passes? false)
 
 (defn get-passes
   [acmi params]
@@ -59,59 +55,6 @@
       last
       second
       ::acmi/entities))
-
-#_(defformula selected-pass
-  [selected-pass-descriptor passes]
-  (let [{:keys [index]} selected-pass-descriptor]
-    (when index
-      (nth passes (long index)))))
-
-#_(defn change-pass
-  [index]
-  (swap! selected-pass-descriptor
-         assoc
-         :index
-         index))
-
-#_(defn change-pilot
-  [pilot-id]
-  (let [indexes (->> @passes
-                     (filter #(= (:carrier-id @selected-pass-descriptor)
-                                 (:carrier-id %)))
-                     (filter #(= pilot-id (:pilot-id %)))
-                     (map :index))]
-    (swap! selected-pass-descriptor
-           assoc
-           :pilot-id
-           pilot-id
-           :index
-           nil)
-    (when (= 1 (count indexes))
-      (change-pass (first indexes)))))
-
-#_(defn change-carrier
-  [carrier-id]
-  (let [pilot-ids (->> @passes
-                       (filter #(= carrier-id (:carrier-id %)))
-                       (map :pilot-id)
-                       distinct)]
-    (reset! selected-pass-descriptor
-            {:carrier-id carrier-id})
-    (when (= 1 (count pilot-ids))
-      (change-pilot (first pilot-ids)))))
-
-#_(defn update-pass
-  "Change to a new pass, altering the current pass number by f."
-  [f]
-  (when-not (empty? @passes)
-    (let [{:keys [index]} @selected-pass-descriptor
-          next-index (f (or index -1))]
-      (when (<= 0 next-index (dec (count @passes)))
-        (let [next-pass (->> @passes
-                             (filter #(= next-index (:index %)))
-                             first)]
-          (reset! selected-pass-descriptor
-                  (select-keys next-pass [:carrier-id :pilot-id :index])))))))
 
 (defn next-pass
   "Moves to the next pass in the list, if there is one."
@@ -179,13 +122,11 @@
                            (let [contents (-> % .-target .-result)]
                              (dosync
                               (reset! acmi (acmi/read-acmi contents))
-                              (reset! selected-pass nil)
-                              #_(let [carrier-ids (->>  @passes
-                                                      (map :carrier-id)
-                                                      distinct)]
-                                (when (= 1 (count carrier-ids))
-                                  (change-carrier (first carrier-ids))))
-                              (reset! loading? false)))))))
+                              (reset! selected-pass
+                                      (when (= 1 (count @passes))
+                                        (first @passes)))
+                              (reset! loading? false)
+                              (reset! limit-displayed-passes? false)))))))
             (.readAsText reader file)))))))
 
 ;;; UI
@@ -364,42 +305,7 @@ L30 1100")))
                                    (* scale value))
         :cx 0
         :cy 0
-        :r 25)
-       #_(let [pitch (-> frame ::grading/pilot ::acmi/pitch)]
-           (svg/circle
-            :attr {:class "pitch"
-                   "pitch" pitch}
-            :transform (gstring/format "translate (%f %f)"
-                                       downrange
-                                       (* scale pitch))
-            :cx 0
-            :cy 0
-            :r 25))
-       #_(svg/circle
-          :attr {:class "path-alpha"
-                 "path-alpha" path-a
-                 "altitude-change" (::grading/zd frame)
-                 "distance-change" (::grading/d frame)}
-          :transform (gstring/format "translate (%f %f)"
-                                     downrange
-                                     (* scale path-a))
-          :cx 0
-          :cy 0
-          :r 25)
-       #_(svg/circle
-          :attr {"smoothed-aoa" aoa
-                 "prior-aoa" prior-aoa
-                 :class (str "smoothed " (name (classify params aoa)))}
-          :transform (gstring/format "translate(%f %f) rotate(%f)"
-                                     downrange
-                                     (* scale aoa)
-                                     (-> frame
-                                         ::grading/pilot
-                                         ::acmi/pitch
-                                         (* -1 pitch-exaggeration)))
-          :cx 0
-          :cy 0
-          :r 25)))))
+        :r 25)))))
 
 (def elevation-exaggeration 4)
 
@@ -416,11 +322,7 @@ L30 1100")))
        [(svg/circle
          :attr {:glideslope value
                 :t t
-                :class (deviation-classes "glideslope-data" deviation)
-                #_(deviation-classes "glideslope-data" (-> frame
-                                                           ::grading/aoa
-                                                           ::grading/deviation))
-                }
+                :class (deviation-classes "glideslope-data" deviation)}
          :cx downrange
          :cy (* elevation-exaggeration height)
          :r 25)
@@ -438,30 +340,7 @@ L30 1100")))
                                                  ::grading/deviation))}
             :cx 0
             :cy 0
-            :r 10)
-           #_(svg/rect
-              :attr {:class (deviation-classes "aoa-deviation" (-> frame
-                                                                   ::grading/aoa
-                                                                   ::grading/deviation))}
-              :x downrange
-              :y (+ -7
-                    (* 100 (-> frame ::grading/aoa ::grading/value (- 8.1)))
-                    (* elevation-exaggeration height))
-              :width 10
-              :height 25
-              )
-
-           #_(svg/line
-              :attr {:class (deviation-classes "aoa-deviation" (-> frame
-                                                                   ::grading/aoa
-                                                                   ::grading/deviation))
-                     #_:stroke #_"white"
-                     :stroke-width "8"}
-              :x1 downrange
-              :x2 downrange
-              :y1 (* elevation-exaggeration height)
-              :y2 (+ (* 100 (-> frame ::grading/aoa ::grading/value (- 8.1)))
-                     (* elevation-exaggeration height)))))]))))
+            :r 10)))]))))
 
 (let [angular-exaggeration 2
       x1 (units/deg->rad 4)
@@ -529,55 +408,6 @@ L30 1100")))
       :x (+ x 20)
       :y 0
       (str x))]))
-
-#_(def aoa
-  (formula-of
-   [selected-pass pass-parameters]
-   (let [{:keys [west east fast slow aoa-aspect]} view-bounds
-         scale (/ (- east west) (- slow fast) aoa-aspect)]
-     (svg/svg
-      :attr {"xmlns" "http://www.w3.org/2000/svg"}
-      ;;:preserveAspectRatio "none"
-      :viewBox (gstring/format "%f %f %f %f"
-                               west
-                               (* slow scale)
-                               (- east west)
-                               (* (- slow fast) scale))
-      :id "aoa"
-      (svg/g
-       :transform (gstring/format "scale(1 -1) translate(0 %f)"
-                                  (* -2 slow scale))
-       (range-lines (* slow scale)
-                    (* fast scale)
-                    (gstring/format "scale(1 -1) translate(0 %f)"
-                                    (* -1 scale (+ fast 0.1)))
-                    "aoa")
-       (let [params (:aoa pass-parameters)
-             guideline (fn [v class]
-                         [(svg/line
-                           :attr {:class (str "aoa guideline aoa-value " class)}
-                           :x1 west
-                           :y1 (* scale v)
-                           :x2 east
-                           :y2 (* scale v))
-                          (svg/text
-                           :transform (gstring/format "scale(1 -1) translate(0 %f)"
-                                                      (* -1 scale (+ v 0.05)))
-                           :attr {:class (str "aoa axis-label aoa-value " class)}
-                           :x (+ west 50)
-                           :y 0
-                           (str v "°"))])]
-         (svg/g
-          (guideline (:ideal params) "ideal")
-          (for [y [6 10]]
-            (guideline y ""))
-          (for [[k1 m] (select-keys params [:good :major])
-                [k2 v] (select-keys m [:low :high])
-                :let [class (str (name k1) " " (name k2))] ]
-            (guideline v class))))
-       (if-not selected-pass
-         []
-         (aoa-path (:aoa pass-parameters) scale selected-pass)))))))
 
 (def elevation
   "Draws the side view of the pass."
@@ -743,111 +573,6 @@ L30 1100")))
        :cy 0
        :r 20)))))
 
-#_(def carrier-select-ui
-  [(label :for "carrier-select" "Carrier:")
-   (formula-of
-    [acmi passes selected-pass-descriptor]
-    (select
-     :id "carrier-select"
-     :change #(change-carrier @%)
-     (let [{:keys [carrier-id]} selected-pass-descriptor
-           carrier-ids (->> passes
-                            (map :carrier-id)
-                            distinct)]
-       (into (if carrier-id
-               []
-               [(option
-                 :selected true
-                 :value ""
-                 "Select a carrier")])
-             (for [[cid name] (->> (for [id carrier-ids]
-                                     [id (property acmi id ::acmi/name)])
-                                   (sort-by second))]
-               (option
-                :selected (= cid carrier-id)
-                :value cid
-                name))))))])
-
-#_(def pilot-select-ui
-  [(label :for "pilot-select" "Pilot:")
-   (formula-of
-    [acmi passes selected-pass-descriptor]
-    (select
-     :id "pilot-select"
-     :change #(change-pilot @%)
-     (let [{:keys [carrier-id pilot-id]} selected-pass-descriptor
-           pilot-ids (->> passes
-                          (filter #(= carrier-id
-                                      (:carrier-id %)))
-                          (map :pilot-id)
-                          distinct)]
-       (into (if pilot-id
-               []
-               [(option
-                 :selected true
-                 :value ""
-                 "Select a pilot")])
-             (for [[pid name] (->> (for [id pilot-ids]
-                                     [id (property acmi id ::acmi/pilot)])
-                                   (sort-by second))]
-               (option
-                :selected (= pid pilot-id)
-                :value pid
-                name))))))])
-
-#_(def pass-select-ui
-  [(label :for "pass-select" "Pass starting at:")
-   (formula-of
-    [acmi passes selected-pass-descriptor]
-    (select
-     :id "pass-select"
-     :change #(change-pass (js/Number. @%))
-     (let [{:keys [carrier-id pilot-id index]} selected-pass-descriptor
-           passes* (->> passes
-                        (filter #(= carrier-id (:carrier-id %)))
-                        (filter #(= pilot-id (:pilot-id %)))
-                        (sort-by :index))]
-       (into (if (and index pilot-id)
-               []
-               [(option
-                 :selected true
-                 :value ""
-                 "Select a pass")])
-             (for [pass passes*]
-               (option
-                :selected (and index (= (long (:index pass)) (long index)))
-                :value (-> pass :index str)
-                (time-str acmi (:start pass))))))))])
-
-#_(def pass-selection-ui
-  (fieldset
-   :id "pass-selection-section"
-   (legend "Pass selection")
-   (div carrier-select-ui)
-   (div pilot-select-ui)
-   (div pass-select-ui))
-
-  ;; TODO: Move this to the bottom as a summary
-  #_[(table
-      :id "passes"
-      (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
-      (tbody
-       (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
-         (do
-           (log/debug :index index
-                      :carrier-id carrier-id
-                      :pilot-id pilot-id)
-           (tr
-            (td (input :type "radio"
-                       :name "pass"
-                       :click #(reset! selected-pass-index @index)
-                       :checked (formula-of
-                                 [selected-pass-index]
-                                 (= selected-pass-index index))))
-            (td (cell= (property carrier-id "Name")))
-            (td (cell= (property pilot-id ::acmi/pilot)))
-            (td (cell= (time-str reference-time start))))))))])
-
 (def titlebar
   (div :id "titlebar"
        (div :id "words"
@@ -947,13 +672,25 @@ L30 1100")))
 
 (defn assessment
   "Returns UI for the assessment section"
-  [passes selected-pass]
+  [passes selected-pass limit-displayed-passes?]
   (table
    :id "assessments"
    (thead
     (tr
      :class "header-1"
-     (th :class "blank" :colspan 4)
+     (th
+      :class "toggle-button"
+      :colspan 4
+      (let [limit-cell limit-displayed-passes?]
+        (formula-of
+         [passes selected-pass limit-displayed-passes?]
+         (button
+          :id "limit-pass-display"
+          :toggle (and passes selected-pass (< 1 (count passes)))
+          :click #(reset! limit-cell (not limit-displayed-passes?))
+          (if limit-displayed-passes?
+            "Show all passes"
+            "Only show selected pass")))))
      (th :class "gs-speed-errors" :colspan 6 "Glideslope and Speed Errors")
      (th :class "control-errors" :colspan 2 "Control Errors")
      (th :class "lineup-and-wing" :rowspan 2 "Lineup & Wing")
@@ -976,7 +713,7 @@ L30 1100")))
    (tbody
     (let [selected-pass-cell selected-pass]
       (formula-of
-       [passes selected-pass]
+       [passes selected-pass limit-displayed-passes?]
        (if (empty? passes)
          (tr (td :class "none-loaded" :colspan 15 "No Passes Detected"))
          (for [pass passes
@@ -986,6 +723,11 @@ L30 1100")))
                            (td :class (str class " assessment-cell")
                                (cell-f assessment)))]]
            (tr
+            :css {:display (if (or (not selected-pass)
+                                   (not limit-displayed-passes?)
+                                   (= selected-pass pass))
+                             "table-row"
+                             "none")}
             (td+ "select"
                  (constantly
                   (input :type "radio"
@@ -1017,61 +759,10 @@ L30 1100")))
             (td+ "att" att-cell)
             (td+ "lineup-and-wing" lineup-and-wing-cell)
             (td+ "wire" wire-cell)
-            (td+ "remarks" remarks-cell))))))))
-  #_(fieldset
-     :id "assessment"
-     (legend "Assessment (Not working yet)")
-     (table
-      :id "assessment-props"
-      (tr (td "Result")
-          (td (formula-of [pass]
-                          (-> pass
-                              :assessment
-                              ::grading/result
-                              (result-text "No Result")))))
-      (tr (td "Overall grade") (td "OMG"))
-      (tr (td "Wire") (td "3"))
-      (tr (td "Called ball?") (td (input :type "checkbox")))
-      (tr (td "Difficult conditions?") (td (input :type "checkbox"))))
-     (let [zones [::grading/start
-                  ::grading/mid
-                  ::grading/in-close
-                  ::grading/at-ramp]
-           zone-label {::grading/start "X"
-                       ::grading/mid "IM"
-                       ::grading/in-close "IC"
-                       ::grading/at-ramp "AR"}
-           dimensions [::grading/glideslope-deviations
-                       ::grading/aoa-deviations
-                       ::grading/lineup-deviations]
-           dimension-label {::grading/glideslope-deviations "Glideslope"
-                            ::grading/aoa-deviations "AoA"
-                            ::grading/lineup-deviations "Lineup"}]
-       (table
-        :id "zone-assessment"
-        (tr
-         (th :class "zone-label zone-dim-label zone-assessment-corner" "")
-         (for [dim dimensions]
-           (th :class "zone-dim-label" (dimension-label dim))))
-        (for [zone zones]
-          (tr
-           (td :class "zone-label" (zone-label zone))
-           (for [dim dimensions]
-             (td
-              :class "zone-assessment-value"
-              (formula-of
-               [pass]
-               (div
-                :class (name dim)
-                (if-not (= zone ::grading/start)
-                  "N/I"
-                  (->> pass
-                       :assessment
-                       zone
-                       dim
-                       (map #(assessment-symbol dim %))))))))))))))
+            (td+ "remarks" remarks-cell)))))))))
 
-(def keymap {97 :a
+(def keymap {49 :one
+             97 :a
              98 :b
              99 :c
              108 :l
@@ -1093,7 +784,8 @@ L30 1100")))
                  :c #(scroll-to "plan")
                  :l #(load-acmi nil)
                  :n next-pass
-                 :p prev-pass})
+                 :p prev-pass
+                 :one #(swap! limit-displayed-passes? not)})
 
 (defn keypress
   [e]
@@ -1128,12 +820,9 @@ L30 1100")))
    (if-not acmi
      (div "No ACMI file loaded")
      []))
-  (assessment passes selected-pass)
+  (assessment passes selected-pass limit-displayed-passes?)
   (div
    :id "graphs"
-   #_(div
-      (div :class "graph-label" "AoA")
-      aoa)
    (div
     (div :class "graph-label" "Glideslope")
     elevation)
