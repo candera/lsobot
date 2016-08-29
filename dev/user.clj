@@ -107,7 +107,10 @@
                   :data (fn [_ _ a] (::grading/result a))}
                  {:width 10
                   :label "X"
-                  :data (fn [_ _ a] (symbolize (::grading/start a)))}]
+                  :data (fn [_ _ a] (symbolize (::grading/start a)))}
+                 {:width 10
+                  :label "IM"
+                  :data (fn [_ _ a] (symbolize (::grading/mid a)))}]
         format-str (str (->> columns
                              (map #(str "%" (:width %) "s "))
                              (apply str))

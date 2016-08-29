@@ -408,9 +408,10 @@ span.assessment-symbol {
     margin-right: 10px;
 }
 
-.three-quarter-mile {
+.zone {
     opacity: 1.0;
     stroke: yellow;
+    stroke-dasharray: 50 30;
 }
 
 /* #aoa, #plan, #elevation { */

@@ -401,6 +401,45 @@
      ::glideslope-deviations [(-> frame ::glideslope ::deviation)]
      ::lineup-deviations [(-> frame ::lineup ::deviation)]}))
 
+(defn most-serious-deviation
+  "Returns the most serious deviation from a sequence of deviations."
+  [deviations]
+  (let [rank {:ideal        0
+              :good         1
+              :minor        2
+              :major        3
+              :unacceptable 4}
+        seriousness (fn [[deviation count]]
+                      [(- (rank (::degree deviation))) (- count)])]
+    (->> deviations
+         frequencies
+         (sort-by seriousness)
+         first
+         first)))
+
+(s/fdef assess-mid
+        :args frames
+        :ret comments)
+
+(defn assess-mid
+  "Returns assessment of mid-phase."
+  [params frames]
+  (let [from (-> params :zones :start :distance)
+        to (-> params :zones :mid :distance)
+        phase-frames (->> frames
+                          (filterv #(< to (::downrange %) from)))]
+    ;; For now, we return only a single deviation, which is the most
+    ;; common, most serious one.
+    {::aoa-deviations [(->> phase-frames
+                            (mapv #(get-in % [::aoa ::deviation]))
+                            most-serious-deviation)]
+     ::glideslope-deviations [(->> phase-frames
+                                   (mapv #(get-in % [::glideslope ::deviation]))
+                                   most-serious-deviation)]
+     ::lineup-deviations [(->> phase-frames
+                               (mapv #(get-in % [::lineup ::deviation]))
+                               most-serious-deviation)]}))
+
 (defn augment-frames
   "Augment the pass frames with any data that has to be derived from
   the sequence."
@@ -417,6 +456,7 @@
   (let [augmented-frames (augment-frames params pilot-id frames)]
     {::result (result params augmented-frames)
      ::start (assess-start params augmented-frames)
+     ::mid (assess-mid params augmented-frames)
      ::frames augmented-frames}))
 
 (defn find-passes

@@ -471,25 +471,27 @@ L30 1100")))
             (guideline v class (if (= k2 :low)
                                  tx
                                  (- tx))))))
-       ;; Guidelines for 3/4 mile, 450 feet
+       ;; Guidelines for assessment zones/phases
        (svg/line
-        :attr {:class "elevation guideline three-quarter-mile"}
+        :attr {:class "elevation guideline zone"}
         :x1 west
         :y1 (* (- 450 z) elevation-exaggeration)
         :x2 east
         :y2 (* (- 450 z) elevation-exaggeration))
        (svg/text
         :transform "scale(1 -1)"
-        :attr {:class "axis-label elevation height three-quarter-mile"}
+        :attr {:class "axis-label elevation height zone"}
         :x (+ west 20)
         :y (* (- z 460) elevation-exaggeration)
         "450")
-       (svg/line
-        :attr {:class "elevation range guideline three-quarter-mile"}
-        :x1 (units/nm->ft 0.75)
-        :y1 low
-        :x2 (units/nm->ft 0.75)
-        :y2 high)
+       (for [zone [:start :mid :in-close]
+             :let [d (-> pass-parameters :zones zone :distance)]]
+         (svg/line
+          :attr {:class "elevation range guideline zone"}
+          :x1 d
+          :y1 low
+          :x2 d
+          :y2 high))
        ;; A nil stops rendering. But an empty collection does not
        (if selected-pass
          (elevation-path (:glideslope pass-parameters) selected-pass)
@@ -523,41 +525,43 @@ L30 1100")))
                   south
                   (gstring/format "translate(0 %f)" south)
                   "plan")
-     (svg/line
-      :attr {:class "plan range guideline three-quarter-mile"}
-      :x1 (units/nm->ft 0.75)
-      :y1 north
-      :x2 (units/nm->ft 0.75)
-      :y2 south)
      (formula-of
       [pass-parameters]
       (svg/g
+       (for [zone [:start :mid :in-close]
+             :let [d (-> pass-parameters :zones zone :distance)]]
+         (svg/line
+          :attr {:class "plan range guideline zone"}
+          :x1 d
+          :y1 north
+          :x2 d
+          :y2 south))
        (let [params (:lineup pass-parameters)]
-        (for [[k1 m] (select-keys params [:good :minor :major])
-              [k2 v] (select-keys m [:low :high])]
-          (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)
-                ty (-> pass-parameters
-                       :landing-window
-                       first
-                       (/ 2)
-                       (* (if (= k2 :low)
-                            -1
-                            1)))]
-            [(svg/line
-              :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
-              :attr {:class (str "plan angle guideline "
-                                 (name k1) " " (name k2))}
-              :x1 0
-              :y1 0
-              :x2 (* east 2)
-              :y2 0)
-             (svg/text
-              :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
-              :attr {:class (str "axis-label plan angle "
-                                 (name k1) " " (name k2))}
-              :x (- east 500)
-              :y -20
-              (str (.toFixed v 1) "°"))])))))
+         (for [[k1 m] (select-keys params [:good :minor :major])
+               [k2 v] (select-keys m [:low :high])]
+           (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)
+                 ty (-> pass-parameters
+                        :landing-window
+                        first
+                        (/ 2)
+                        (* (if (= k2 :low)
+                             -1
+                             1)))]
+             [(svg/line
+               :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
+               :attr {:class (str "plan angle guideline "
+                                  (name k1) " " (name k2))}
+               :x1 0
+               :y1 0
+               :x2 (* east 2)
+               :y2 0)
+              (svg/text
+               :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
+               :attr {:class (str "axis-label plan angle "
+                                  (name k1) " " (name k2))}
+               :x (- east 500)
+               :y -20
+               (str (.toFixed v 1) "°"))])))))
      (svg/g
       ;; We need to invert the y axis because of the way the coordinate
       ;; systems interact: in landing space, crosstrack error increases
@@ -652,24 +656,28 @@ L30 1100")))
 
 (def aw-cell not-implemented-cell)
 
-(defn x-cell
-  [assessment]
+(defn glideslope-and-speed-cell
+  [phase assessment]
   (for [dimension [::grading/glideslope-deviations
-                   ::grading/aoa-deviations
-                   ;; TODO: Move lineup to lineup column
-                   ;; ::grading/lineup-deviations
-                   ]
-        deviation (get-in assessment [::grading/start dimension])]
+                   ::grading/aoa-deviations]
+        deviation (get-in assessment [phase dimension])]
     (assessment-symbol dimension deviation)))
 
-(def im-cell not-implemented-cell)
+(defn x-cell
+  [assessment]
+  (glideslope-and-speed-cell ::grading/start assessment))
+
+(defn im-cell
+  [assessment]
+  (glideslope-and-speed-cell ::grading/mid assessment))
+
 (def ic-cell not-implemented-cell)
 (def ar-cell not-implemented-cell)
 (def power-cell not-implemented-cell)
 (def att-cell not-implemented-cell)
 (defn lineup-and-wing-cell
   [assessment]
-  (for [phase [::grading/start]
+  (for [phase [::grading/start ::grading/mid]
         deviation (get-in assessment [::grading/start ::grading/lineup-deviations])]
     (assessment-symbol ::grading/lineup-deviations deviation phase)))
 
