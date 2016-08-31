@@ -20,6 +20,23 @@
    [cljs.core.async.macros :refer [go go-loop]]
    [lsobot.macros :refer [formula-of defformula]]))
 
+;;; Utilities
+
+(defn time-str
+  [acmi t]
+  ;; For now we're just going to assume the reference time is midnight
+  (let [s (mod t 60)
+        t (long (/ t 60))
+        m (mod t 60)
+        t (long (/ t 60))
+        h (mod t 24)
+        d (long (/ t 24))]
+    (gstring/format "%02d/%02d:%02d:%02d" (inc d) h m s)))
+
+(defn property
+  [acmi id prop]
+  (-> acmi ::acmi/frames last ::acmi/entities (get-in [id prop])))
+
 ;;; State
 
 (defc pass-parameters grading/default-parameters)
@@ -38,11 +55,10 @@
               [pilot-id assessments] pilot-passes
               assessment assessments]
           {:assessment assessment
-           :carrier-id carrier-id
-           :start      (-> assessment ::grading/frames first ::acmi/t)
-           :pilot-id   pilot-id})
-        (map-indexed (fn [index m]
-                       (assoc m :index index)))))
+           :carrier    (-> acmi ::acmi/frames last (acmi/entity carrier-id) ::acmi/name)
+           :pilot      (-> acmi ::acmi/frames last (acmi/entity pilot-id) ::acmi/pilot)
+           :start      (->> assessment ::grading/frames first ::acmi/t (time-str nil))})
+        (sort-by (juxt :carrier :pilot :start))))
 
 (defformula passes
   [acmi pass-parameters]
@@ -77,23 +93,6 @@
     :else (reset! selected-pass (->> @passes
                                      (take-while #(not= @selected-pass %))
                                      last))))
-
-;;; Utilities
-
-(defn time-str
-  [acmi t]
-  ;; For now we're just going to assume the reference time is midnight
-  (let [s (mod t 60)
-        t (long (/ t 60))
-        m (mod t 60)
-        t (long (/ t 60))
-        h (mod t 24)
-        d (long (/ t 24))]
-    (gstring/format "%02d/%02d:%02d:%02d" (inc d) h m s)))
-
-(defn property
-  [acmi id prop]
-  (-> acmi ::acmi/frames last ::acmi/entities (get-in [id prop])))
 
 ;;; Serialization
 
@@ -337,10 +336,10 @@ L30 1100")))
                                               (-> frame
                                                   ::grading/aoa
                                                   ::grading/deviation))}
-            :cx downrange
-            :cy (+ (* 100 (- aoa (-> params :aoa :ideal)))
-                   (* elevation-exaggeration height))
-            :r 10)))]))))
+             :cx downrange
+             :cy (+ (* 100 (- aoa (-> params :aoa :ideal)))
+                    (* elevation-exaggeration height))
+             :r 10)))]))))
 
 (let [angular-exaggeration 2
       x1 (units/deg->rad 4)
@@ -392,22 +391,43 @@ L30 1100")))
         :cy (if (pos? downrange) crosstrack* crosstrack-error)
         :r 25)))))
 
-(defn range-lines
-  "Draw the lines that show range, with their labels."
-  [y1 y2 text-transform class]
-  (for [x (range 0 (:east view-bounds) 1000)]
-    [(svg/line
-      :attr {:class (str class " range guideline")}
-      :x1 x
-      :y1 y1
-      :x2 x
-      :y2 y2)
-     (svg/text
-      :transform text-transform
-      :attr {:class (str class " axis-label range")}
-      :x (+ x 20)
-      :y 0
-      (str x))]))
+(defn zones
+  "Draw the lines that show range and zones, with their labels."
+  [params y1 y2 zone-label-y text-transform class]
+  (let [zones [:start :mid :in-close]
+        zone-starts (mapv #(-> params :zones % :from) zones)
+        zone-ends  (mapv #(-> params :zones % :to) zones)
+        zone-ranges (into (set zone-starts) zone-ends)
+        all-ranges (->> (range 0 6001 1500)
+                        (into zone-ranges)
+                        sort)]
+    (svg/g
+     :attr {:class "zone-markings"}
+     (for [x all-ranges]
+       [(svg/line
+         :attr {:class (str class " range guideline" (when (zone-ranges x) " zone"))}
+         :x1 x
+         :y1 y1
+         :x2 x
+         :y2 y2)
+        (svg/text
+         :transform text-transform
+         :attr {:class (str class " axis-label range")}
+         :x (+ x 20)
+         :y 0
+         (str x))])
+     (for [zone zones
+           :let [from (-> params :zones zone :from)
+                 to (-> params :zones zone :to)
+                 midpoint (/ (+ from to) 2)]]
+       (svg/text
+        :transform text-transform
+        :attr {:class (str class " axis-label range zone")}
+        :x midpoint
+        :y zone-label-y
+        (zone {:start    "X"
+               :mid      "IM"
+               :in-close "IC"}))))))
 
 (def elevation
   "Draws the side view of the pass."
@@ -433,11 +453,13 @@ L30 1100")))
         :width (- east west)
         :height (+ (* 2 z) high))
        (carrier-elevation z)
-       (range-lines low
-                    high
-                    (gstring/format "scale(1 -1) translate(0 %f)"
-                                    (- (+ low z)))
-                    "elevation")
+       (zones pass-parameters
+              low
+              (+ high z)
+              (- (- (* elevation-exaggeration z)) high)
+              (gstring/format "scale(1 -1) translate(0 %f)"
+                              (- (+ low z)))
+              "elevation")
        ;; Colored glideslope guidelines
        (let [params (:glideslope pass-parameters)
              guideline (fn [angle class tx]
@@ -484,14 +506,6 @@ L30 1100")))
         :x (+ west 20)
         :y (* (- z 460) elevation-exaggeration)
         "450")
-       (for [zone [:start :mid :in-close]
-             :let [d (-> pass-parameters :zones zone :distance)]]
-         (svg/line
-          :attr {:class "elevation range guideline zone"}
-          :x1 d
-          :y1 low
-          :x2 d
-          :y2 high))
        ;; A nil stops rendering. But an empty collection does not
        (if selected-pass
          (elevation-path pass-parameters selected-pass)
@@ -521,21 +535,15 @@ L30 1100")))
       :y1 0
       :x2 east
       :y2 0)
-     (range-lines north
-                  south
-                  (gstring/format "translate(0 %f)" south)
-                  "plan")
      (formula-of
       [pass-parameters]
       (svg/g
-       (for [zone [:start :mid :in-close]
-             :let [d (-> pass-parameters :zones zone :distance)]]
-         (svg/line
-          :attr {:class "plan range guideline zone"}
-          :x1 d
-          :y1 north
-          :x2 d
-          :y2 south))
+       (zones pass-parameters
+             north
+             south
+             (+ (- north south) 200)
+             (gstring/format "translate(0 %f)" south)
+             "plan")
        (let [params (:lineup pass-parameters)]
          (for [[k1 m] (select-keys params [:good :minor :major])
                [k2 v] (select-keys m [:low :high])]
@@ -644,8 +652,8 @@ L30 1100")))
     (assessment-mark dimension deviation phase))))
 
 (defn not-implemented-cell
-    [assessment]
-    "-")
+  [assessment]
+  "-")
 
 (defn grade-cell
   [assessment]
@@ -742,7 +750,7 @@ L30 1100")))
        (if (empty? passes)
          (tr (td :class "none-loaded" :colspan 15 "No Passes Detected"))
          (for [pass passes
-               :let [{:keys [carrier-id pilot-id index assessment]} pass
+               :let [{:keys [carrier pilot start assessment]} pass
                      frames (::grading/frames assessment)
                      td+ (fn [class cell-f]
                            (td :class (str class " assessment-cell")
@@ -760,20 +768,11 @@ L30 1100")))
                          :click #(reset! selected-pass-cell pass)
                          :checked (= selected-pass pass))))
             (td+ "carrier"
-                 (constantly
-                  (-> frames
-                      last
-                      (acmi/entity carrier-id)
-                      ::acmi/name)))
+                 (constantly carrier))
             (td+ "pilot"
-                 (constantly
-                  (-> frames
-                      last
-                      (acmi/entity pilot-id)
-                      ::acmi/pilot)))
+                 (constantly pilot))
             (td+ "start"
-                 (constantly
-                  (->> pass :start (time-str nil))))
+                 (constantly start))
             (td+ "grade" grade-cell)
             (td+ "aw" aw-cell)
             (td+ "x" x-cell)

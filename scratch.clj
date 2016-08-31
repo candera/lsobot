@@ -559,7 +559,7 @@
   ::grading/downrange 0
   ::grading/height 0})
 
-(let [path "acmi/25 passes 4 AC.2.txt.acmi"
+(let [path "acmi/Ramp Strike.txt.acmi"
       file (-> path slurp acmi/read-acmi)
       passes (grading/passes file grading/default-parameters)
       dist (-> grading/default-parameters
@@ -571,16 +571,15 @@
              assessment assessments
              frame (::grading/frames assessment)
              :when (-> frame ::grading/downrange Math/abs (< 150))]
-         {:carrier-id carrier-id
-          :pilot-id pilot-id
+         {:pilot-id (->> pilot-id (acmi/entity frame) ::acmi/pilot)
           :start (time-str file (::acmi/t frame))
           :height (::grading/height frame)
           :downrange (::grading/downrange frame)
           :t (->> assessment ::grading/frames first ::acmi/t (time-str nil))
           :path-a (::grading/path-a frame)
-          :hook-alt (nth (->> frame (hook-pos grading/default-parameters)) 2)})
+          :hook-alt (nth (->> frame (grading/hook-pos grading/default-parameters)) 2)})
        (take 30)
-       pprint))
+       print-table))
 
 
 
@@ -598,31 +597,4 @@
          (keys (::grading/pilot frame)))
        rand-nth
        pprint))
-
-                     
-  (let [e0 (acmi/entity f0 pilot-id)
-        e1 (acmi/entity f1 pilot-id)
-        t0 (::acmi/t f0)
-        t1 (::acmi/t f1)
-        u0 (::acmi/u e0)
-        u1 (::acmi/u e1)
-        v0 (::acmi/v e0)
-        v1 (::acmi/v e1)
-        z0 (::acmi/alt e0)
-        z1 (::acmi/alt e1)
-        ud (- u1 u0)
-        vd (- v1 v0)
-        d (Math/sqrt (+ (* ud ud) (* vd vd)))
-        path-a (units/rad->deg (Math/atan2 (- z1 z0) d))]
-    ;; Sometime a frame updates because something other than position
-    ;; changes. In which case, we can't compute a meaninful AOA.
-    {::zd (- z1 z0)
-     ::d d
-     ::path-a path-a
-     ::pitch (::acmi/pitch e0)
-     ::pilot e0
-     ::speed (/ (units/m->ft d) (- t1 t0)) ; Feet/sec
-     ::aoa (let [value (- (::acmi/pitch e0) path-a)]
-             {::value value
-              ::deviation (classify params value)})})
 

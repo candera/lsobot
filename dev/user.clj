@@ -125,4 +125,25 @@
                   (map :data)
                   (map #(% carrier-id pilot-id assessment)))))))
 
-(log/merge-config! {:enabled? true})
+(defn print-table
+  "Print a seq of maps in a tabular format."
+  [ms]
+  (let [ks (->> ms
+                (mapcat keys)
+                distinct
+                sort)
+        lens (->> ks
+                  (map str)
+                  (map count))
+        format-str (->> lens
+                        (map #(str "%" % "s"))
+                        (interpose " ")
+                        (apply str))]
+    (->> ks (map name) (map str) (apply format format-str) println)
+    (doseq [m ms]
+      (->> ks
+           (map #(get m %))
+           (interpose " ")
+           (apply str)
+           println))))
+

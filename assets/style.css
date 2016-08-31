@@ -332,24 +332,24 @@ span.assessment-symbol {
 }
 
 .guideline.good {
-    stroke-width: 10;
+    stroke-width: 5;
     stroke: lime;
     opacity: 1;
-    stroke-dasharray: 10 30;
+    stroke-dasharray: 30 0;
 }
 
 .guideline.minor {
-    stroke-width: 15;
+    stroke-width: 5;
     stroke: yellow;
     opacity: 1;
-    stroke-dasharray: 10 30;
+    stroke-dasharray: 30 0;
 }
 
 .guideline.major {
-    stroke-width: 15;
+    stroke-width: 5;
     stroke: orange;
     opacity: 1;
-    stroke-dasharray: 10 30;
+    stroke-dasharray: 30 0;
 }
 
 .axis-label {
