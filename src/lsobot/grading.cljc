@@ -97,7 +97,7 @@
    :landing-area-width 80               ; Feet
    :landing-area-length 795             ; Feet
    :hook-offset [0.00 18.04 -6.87] ; In carrier coordinates, offset from
-                                ; pilot location. Feet.
+                                        ; pilot location. Feet.
 
    :trap-speed (units/kts->ft-per-sec 40) ; Must slow to below this
                                         ; speed to be considered to
@@ -128,9 +128,12 @@
                            :high 2}
                    :major {:low  -3
                            :high 3}}
-   :zones {:start        {:distance (units/nm->ft 0.75)}
-           :mid          {:distance (units/nm->ft 0.25)}
-           :in-close     {:distance (units/nm->ft 0.1)}
+   :zones {:start        {:from 4500
+                          :to 3000}
+           :mid          {:from 3000
+                          :to 1500}
+           :in-close     {:from 1500
+                          :to 600}
            ;; Ramp distance is automatically the end of the carrier
            ;; until touchdown
            :at-ramp      {}
@@ -212,10 +215,10 @@
         g-near (Math/atan2 height d-near)
         g-far (Math/atan2 height d-far)
         value (units/rad->deg
-              (cond
-                (<= g-far g-ideal g-near) g-ideal
-                (< g-ideal g-far) g-far
-                :else g-near))]
+               (cond
+                 (<= g-far g-ideal g-near) g-ideal
+                 (< g-ideal g-far) g-far
+                 :else g-near))]
     {::value value
      ::deviation (when (pos? downrange)
                    (classify params value))}))
@@ -391,7 +394,8 @@
   (let [dist (-> params
                  :zones
                  :start
-                 :distance)
+                 ;; TODO: make this a from/to zone instead
+                 :from)
         frame (->> frames
                    (filterv #(< (::downrange %) dist))
                    first)]
@@ -422,8 +426,8 @@
 (defn assess-mid
   "Returns assessment of mid-phase."
   [params frames]
-  (let [from (-> params :zones :start :distance)
-        to (-> params :zones :mid :distance)
+  (let [from (-> params :zones :start :from)
+        to (-> params :zones :start :to)
         phase-frames (->> frames
                           (filterv #(< to (::downrange %) from)))]
     ;; For now, we return only a single deviation, which is the most
@@ -439,7 +443,7 @@
                                most-serious-deviation)]}))
 
 (defn hook-pos
-  "Returns [right downrange height] of hook."
+  "Returns [crosstrack downrange height] of hook."
   [params frame]
   (let [pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
         [hx hy hz] (:hook-offset params)
@@ -459,7 +463,7 @@
 (defn assess-wire
   "Returns a wire number, or nil if wire cannot be determined."
   [params frames]
-  (let [{:keys [wire-interval ramp-to-1-wire]}  params
+  (let [{:keys [wire-interval]}  params
         ;; TODO
         ]
     ))
@@ -488,7 +492,7 @@
                                :last-pos nil})
                              :frames)]
     (mapv (fn [f0 f1]
-            (merge f0 (derived-data (:aoa params) pilot-id f0 f1)))
+            (merge f1 (derived-data (:aoa params) pilot-id f0 f1)))
           distinct-frames
           (drop 4 distinct-frames))))
 
@@ -496,11 +500,13 @@
   "Perform any processing that can only happen once we have the whole
   pass. Returns the assessment."
   [params pilot-id frames]
-  (let [augmented-frames (augment-frames params pilot-id frames)]
-    {::result (result params augmented-frames)
+  (let [augmented-frames (augment-frames params pilot-id frames)
+        result (result params augmented-frames)]
+    {::result result
      ::start (assess-start params augmented-frames)
      ::mid (assess-mid params augmented-frames)
-     ::wire (assess-wire params augmented-frames)
+     ::wire (when (= result :trap)
+              (assess-wire params augmented-frames))
      ::frames augmented-frames}))
 
 (defn find-passes
