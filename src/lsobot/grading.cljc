@@ -16,6 +16,7 @@
 (s/def ::slope float?)
 (s/def ::distance float?)
 (s/def ::course-deviation float?)
+(s/def ::wire (s/nilable (s/and integer? #(< 0 % 5))))
 (s/def ::result #{:trap :bolter :waveoff :ramp-strike})
 (def frame (s/keys :req [::slope
                          ::distance
@@ -91,13 +92,16 @@
    ;; -Landing area width: 80 ft
    ;; -Total length of landing area, from ramp to deck edge: 795 ft
    ;; Landing point centers between 2- and 3-wire
-   :wire-interval 40                      ; Feet
-   :ramp-to-1-wire 176                    ; Feet
-   :landing-area-width 80                 ; Feet
-   :landing-area-length 795               ; Feet
+   :wire-interval 40                    ; Feet
+   :ramp-to-1-wire 176                  ; Feet
+   :landing-area-width 80               ; Feet
+   :landing-area-length 795             ; Feet
+   :hook-offset [0.00 18.04 -6.87] ; In carrier coordinates, offset from
+                                ; pilot location. Feet.
+
    :trap-speed (units/kts->ft-per-sec 40) ; Must slow to below this
                                         ; speed to be considered to
-                                        ; have caught a wire. m/s
+                                        ; have caught a wire. ft/s
 
    :touchdown-height 10        ; How high above the deck (in feet) the
                                         ; aircraft has to be before it
@@ -312,31 +316,25 @@
 (defn derived-data
   "Computes angle of attack, speed, and other quantities given two frames"
   [params pilot-id f0 f1]
-  (let [e0 (acmi/entity f0 pilot-id)
-        e1 (acmi/entity f1 pilot-id)
-        t0 (::acmi/t f0)
+  (let [t0 (::acmi/t f0)
         t1 (::acmi/t f1)
-        u0 (::acmi/u e0)
-        u1 (::acmi/u e1)
-        v0 (::acmi/v e0)
-        v1 (::acmi/v e1)
-        z0 (::acmi/alt e0)
-        z1 (::acmi/alt e1)
+        p0 (::pilot f0)
+        [u0 v0 z0] (::pos f0)
+        [u1 v1 z1] (::pos f1)
         ud (- u1 u0)
         vd (- v1 v0)
-        d (Math/sqrt (+ (* ud ud) (* vd vd)))
-        path-a (units/rad->deg (Math/atan2 (- z1 z0) d))]
-    ;; Sometime a frame updates because something other than position
-    ;; changes. In which case, we can't compute a meaninful AOA.
-    {::zd (- z1 z0)
-     ::d d
+        zd (- z1 z0)
+        d (Math/sqrt (+ (* ud ud) (* vd vd) (* zd zd)))
+        path-a (units/rad->deg (Math/atan2 (- z1 z0) d))
+        pitch (::acmi/pitch p0)]
+    {::zd     zd
+     ::d      d
      ::path-a path-a
-     ::pitch (::acmi/pitch e0)
-     ::pilot e0
-     ::speed (/ (units/m->ft d) (- t1 t0)) ; Feet/sec
-     ::aoa (let [value (- (::acmi/pitch e0) path-a)]
-             {::value value
-              ::deviation (classify params value)})}))
+     ::pitch  pitch
+     ::speed  (/ d (- t1 t0))           ; Feet/sec
+     ::aoa    (let [value (- pitch path-a)]
+                {::value value
+                 ::deviation (classify params value)})}))
 
 (defn result
   "Compute the result of the pass - trap, bolter, etc."
@@ -440,14 +438,59 @@
                                (mapv #(get-in % [::lineup ::deviation]))
                                most-serious-deviation)]}))
 
+(defn hook-pos
+  "Returns [right downrange height] of hook."
+  [params frame]
+  (let [pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
+        [hx hy hz] (:hook-offset params)
+        ;; x assumed to be zero
+        y (- (* hy (Math/cos pitch))
+             (* hz (Math/sin pitch)))
+        z (+ (* hz (Math/cos pitch))
+             (* hy (Math/sin pitch)))]
+    [(-> frame ::crosstrack-error)
+     (-> frame
+         ::downrange
+         (+ y))
+     (-> frame
+         ::height
+         (+ z))]))
+
+(defn assess-wire
+  "Returns a wire number, or nil if wire cannot be determined."
+  [params frames]
+  (let [{:keys [wire-interval ramp-to-1-wire]}  params
+        ;; TODO
+        ]
+    ))
+
 (defn augment-frames
   "Augment the pass frames with any data that has to be derived from
   the sequence."
   [params pilot-id frames]
-  (mapv (fn [f0 f1]
-          (merge f0 (derived-data (:aoa params) pilot-id f0 f1)))
-        frames
-        (drop 4 frames)))
+  (let [distinct-frames (->> frames
+                             (reduce
+                              (fn [{:keys [frames last-pos] :as acc} frame]
+                                (let [p (acmi/entity frame pilot-id)
+                                      u (::acmi/u p)
+                                      v (::acmi/v p)
+                                      z (::acmi/alt p)
+                                      pos [u v z]]
+                                  (if (= last-pos pos)
+                                    acc
+                                    (assoc acc
+                                           :frames (conj frames
+                                                         (assoc frame
+                                                                ::pos (mapv units/m->ft pos)
+                                                                ::pilot p))
+                                           :last-pos pos))))
+                              {:frames []
+                               :last-pos nil})
+                             :frames)]
+    (mapv (fn [f0 f1]
+            (merge f0 (derived-data (:aoa params) pilot-id f0 f1)))
+          distinct-frames
+          (drop 4 distinct-frames))))
 
 (defn assess-pass
   "Perform any processing that can only happen once we have the whole
@@ -457,6 +500,7 @@
     {::result (result params augmented-frames)
      ::start (assess-start params augmented-frames)
      ::mid (assess-mid params augmented-frames)
+     ::wire (assess-wire params augmented-frames)
      ::frames augmented-frames}))
 
 (defn find-passes

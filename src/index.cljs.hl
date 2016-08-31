@@ -328,18 +328,18 @@ L30 1100")))
          :r 25)
         (if (neg? downrange)
           []
-          (svg/g
-           :transform (gstring/format "translate(%f %f)"
-                                      downrange
-                                      (+ (* 100 (-> frame ::grading/aoa ::grading/value (- 8.1)))
-                                         (* elevation-exaggeration height)))
-           (svg/circle
-            :attr {:class (deviation-classes "aoa-deviation"
-                                             (-> frame
-                                                 ::grading/aoa
-                                                 ::grading/deviation))}
-            :cx 0
-            :cy 0
+          (let [aoa (-> frame ::grading/aoa ::grading/value)]
+            (svg/circle
+             :attr {:aoa aoa
+                    :pitch (-> frame ::grading/pilot ::acmi/pitch)
+                    :path-a (-> frame ::grading/path-a)
+                    :class (deviation-classes "aoa-deviation"
+                                              (-> frame
+                                                  ::grading/aoa
+                                                  ::grading/deviation))}
+            :cx downrange
+            :cy (+ (* 100 (- aoa (-> params :aoa :ideal)))
+                   (* elevation-exaggeration height))
             :r 10)))]))))
 
 (let [angular-exaggeration 2
@@ -494,7 +494,7 @@ L30 1100")))
           :y2 high))
        ;; A nil stops rendering. But an empty collection does not
        (if selected-pass
-         (elevation-path (:glideslope pass-parameters) selected-pass)
+         (elevation-path pass-parameters selected-pass)
          [])
        (svg/circle
         :attr {:class "landing-point-dot"}
@@ -821,6 +821,7 @@ L30 1100")))
 (html
  (head
   (title "LSOBot")
+  (link :rel "Shortcut Icon" :href "images/favicon.ico" :type "image/x-icon")
   (link :href "style.css" :rel "stylesheet" :title "main" :type "text/css")
   (link :href "https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300"
         :rel "stylesheet"

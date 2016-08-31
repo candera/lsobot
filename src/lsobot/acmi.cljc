@@ -190,6 +190,10 @@
                    :key      ::indicated-airspeed}
    "TAS"          {:parse-as :float
                    :key      ::true-airspeed}
+   "Mach"         {:parse-as :float
+                   :key      ::mach}
+   "AOA"          {:parse-as :float
+                   :key      ::aoa}
    "HDG"          {:parse-as :float
                    :key      ::heading}
    "Throttle"     {:parse-as :float
