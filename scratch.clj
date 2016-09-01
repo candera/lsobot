@@ -559,27 +559,15 @@
   ::grading/downrange 0
   ::grading/height 0})
 
-(let [path "acmi/Ramp Strike.txt.acmi"
+(let [path "acmi/Training Trap5.txt.acmi"
       file (-> path slurp acmi/read-acmi)
-      passes (grading/passes file grading/default-parameters)
-      dist (-> grading/default-parameters
-               :zones
-               :start
-               :distance)]
-  (->> (for [[carrier-id pilot-passes] passes
-             [pilot-id assessments] pilot-passes
-             assessment assessments
-             frame (::grading/frames assessment)
-             :when (-> frame ::grading/downrange Math/abs (< 150))]
-         {:pilot-id (->> pilot-id (acmi/entity frame) ::acmi/pilot)
-          :start (time-str file (::acmi/t frame))
-          :height (::grading/height frame)
-          :downrange (::grading/downrange frame)
-          :t (->> assessment ::grading/frames first ::acmi/t (time-str nil))
-          :path-a (::grading/path-a frame)
-          :hook-alt (nth (->> frame (grading/hook-pos grading/default-parameters)) 2)})
-       (take 30)
-       print-table))
+      passes (grading/passes file grading/default-parameters)]
+  (for [[carrier-id pilot-passes] passes
+        [pilot-id assessments] pilot-passes
+        assessment assessments
+        :when (-> assessment ::grading/pilot ::acmi/pilot (= "Flounder"))]
+    {:start (::grading/start assessment)
+     :t (->> assessment ::grading/frames first ::acmi/t (time-str nil))}))
 
 
 
@@ -598,3 +586,68 @@
        rand-nth
        pprint))
 
+
+(let [path "acmi/Training Trap5.txt.acmi"
+      flounder "2c32d33300000001"
+      vinson "2c32d33300000008"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/find-passes file vinson flounder grading/default-parameters)]
+  (-> (for [assessment passes]
+        {:assessment (select-keys assessment [::grading/start
+                                              ::grading/mid
+                                              ::grading/result
+                                              ::grading/wire])
+         :t (->> assessment ::grading/frames first ::acmi/t (time-str nil))})
+      (nth 0)
+      pprint))
+
+
+(let [path "acmi/Training Trap5.txt.acmi"
+      flounder "2c32d33300000001"
+      vinson "2c32d33300000008"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/find-passes file vinson flounder grading/default-parameters)]
+  (as-> passes ?
+    (first ?)
+    (grading/assess-pass grading/default-parameters flounder ?)
+    (dissoc ? ::grading/frames)
+    (pprint ?)))
+
+(let [path "acmi/Training Trap5.txt.acmi"
+      flounder "2c32d33300000001"
+      sting21 "2c32d33300000009"
+      sting22 "2c32d3330000000a"
+      pilot sting21
+      vinson "2c32d33300000008"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/find-passes file vinson pilot grading/default-parameters)]
+  (as-> passes ?
+    (nth ? 1)
+    (grading/augment-frames grading/default-parameters pilot ?)
+    (grading/assess-pass grading/default-parameters pilot ?)
+    (dissoc ? ::grading/frames)
+    (pprint ?)))
+
+(let [path "acmi/Training Trap5.txt.acmi"
+      flounder "2c32d33300000001"
+      sting21 "2c32d33300000009"
+      sting22 "2c32d3330000000a"
+      pilot sting21
+      vinson "2c32d33300000008"
+      file (-> path slurp acmi/read-acmi)
+      passes (grading/find-passes file vinson pilot grading/default-parameters)]
+  (as-> passes ?
+    (nth ? 1)
+    (grading/augment-frames grading/default-parameters pilot ?)
+    (grading/assess-pass grading/default-parameters pilot ?)
+    (dissoc ? ::grading/frames)
+    (pprint ?)))
+
+(let [path "acmi/Training Trap5.txt.acmi"
+      file (-> path slurp acmi/read-acmi)]
+  {:pilots (grading/pilots file)
+   :carriers (grading/carriers file)})
+
+(let [path "acmi/Training Trap5.txt.acmi"
+      file (-> path slurp acmi/read-acmi)]
+  (count (grading/passes file grading/default-parameters)))

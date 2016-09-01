@@ -679,14 +679,17 @@ L30 1100")))
   [assessment]
   (glideslope-and-speed-cell ::grading/mid assessment))
 
-(def ic-cell not-implemented-cell)
+(defn ic-cell
+  [assessment]
+  (glideslope-and-speed-cell ::grading/in-close assessment))
+
 (def ar-cell not-implemented-cell)
 (def power-cell not-implemented-cell)
 (def att-cell not-implemented-cell)
 (defn lineup-and-wing-cell
   [assessment]
-  (for [phase [::grading/start ::grading/mid]
-        deviation (get-in assessment [::grading/start ::grading/lineup-deviations])]
+  (for [phase [::grading/start ::grading/mid ::grading/in-close]
+        deviation (get-in assessment [phase ::grading/lineup-deviations])]
     (assessment-symbol ::grading/lineup-deviations deviation phase)))
 
 (defn wire-cell

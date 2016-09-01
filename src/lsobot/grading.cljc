@@ -66,20 +66,20 @@
 ;; Distances in feet.
 
 (def default-parameters
-  {:min-time      10  ; Seconds
-   :max-slope     10  ; Degrees
-   :max-angle     20  ; Degrees
-   :min-dist      0.4 ; Pass has to start at least this far away (nm).
+  {:min-time            10  ; Seconds
+   :max-slope           10  ; Degrees
+   :max-angle           20  ; Degrees
+   :min-dist            0.4 ; Pass has to start at least this far away (nm).
                                         ; Prevents things like detecting a pass starting
                                         ; on the deck.
-   :max-dist      1.5   ; Pass starts no farther away than this (nm).
-   :recovery-skew 11    ; Degrees the deck of the carrier differs from
+   :max-dist            1.5   ; Pass starts no farther away than this (nm).
+   :recovery-skew       11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
-   :coda          5      ; Seconds of data to keep after approach ends
-   :landing-point [-15 -313 74]       ; x,y,z position in carrier
+   :coda                5      ; Seconds of data to keep after approach ends
+   :landing-point       [-15 -313 74]       ; x,y,z position in carrier
                                         ; coordinates zero where landing
                                         ; should aim. Feet.
-   :landing-window [50 150]  ; width,length of the "window" around the
+   :landing-window      [50 150]  ; width,length of the "window" around the
                                         ; landing point. This forms an imaginary
                                         ; box, inside of which everywhere is
                                         ; considered equivalent. Lining up on
@@ -92,53 +92,60 @@
    ;; -Landing area width: 80 ft
    ;; -Total length of landing area, from ramp to deck edge: 795 ft
    ;; Landing point centers between 2- and 3-wire
-   :wire-interval 40                    ; Feet
-   :ramp-to-1-wire 176                  ; Feet
-   :landing-area-width 80               ; Feet
-   :landing-area-length 795             ; Feet
-   :hook-offset [0.00 18.04 -6.87] ; In carrier coordinates, offset from
+   :wire-interval       40               ; Feet
+   :ramp-to-1-wire      176             ; Feet
+   :landing-area-width  80          ; Feet
+   :landing-area-length 795        ; Feet
+   :hook-offset         [0.00 18.04 -6.87] ; In carrier coordinates, offset from
                                         ; pilot location. Feet.
 
-   :trap-speed (units/kts->ft-per-sec 40) ; Must slow to below this
+   :trap-speed          (units/kts->ft-per-sec 40) ; Must slow to below this
                                         ; speed to be considered to
                                         ; have caught a wire. ft/s
 
-   :touchdown-height 10        ; How high above the deck (in feet) the
+   :touchdown-height    10        ; How high above the deck (in feet) the
                                         ; aircraft has to be before it
                                         ; is considered to be on the deck
 
-   :glideslope    {:ideal 3.3
-                   :good  {:low  3.1
-                           :high 3.5}
-                   :minor {:low  2.7
-                           :high 3.9}
-                   :major {:low  2.3
-                           :high 4.3}}
-   :aoa           {:ideal 8.1
-                   :good  {:low  7.4
-                           :high 8.8}
-                   :minor {:low  7.4
-                           :high 8.8}
-                   :major {:low  6.9
-                           :high 9.3}}
-   :lineup        {:ideal 0
-                   :good  {:low  -1
-                           :high 1}
-                   :minor {:low  -2
-                           :high 2}
-                   :major {:low  -3
-                           :high 3}}
-   :zones {:start        {:from 4500
-                          :to 3000}
-           :mid          {:from 3000
-                          :to 1500}
-           :in-close     {:from 1500
-                          :to 600}
-           ;; Ramp distance is automatically the end of the carrier
-           ;; until touchdown
-           :at-ramp      {}
-           ;; In the wires from touchdown until stopped
-           :in-the-wires {}}})
+   :glideslope          {:ideal 3.3
+                         :good  {:low  3.1
+                                 :high 3.5}
+                         :minor {:low  2.7
+                                 :high 3.9}
+                         :major {:low  2.3
+                                 :high 4.3}}
+   :aoa                 {:ideal 8.1
+                         :good  {:low  7.4
+                                 :high 8.8}
+                         :minor {:low  7.4
+                                 :high 8.8}
+                         :major {:low  6.9
+                                 :high 9.3}}
+   :lineup              {:ideal 0
+                         :good  {:low  -1
+                                 :high 1}
+                         :minor {:low  -2
+                                 :high 2}
+                         :major {:low  -3
+                                 :high 3}}
+   :weights             {:start        1
+                         :end          2
+                         :ideal        1
+                         :good         1
+                         :minor        2
+                         :major        4
+                         :unacceptable 8}
+   :zones               {:start        {:from 4500
+                                        :to 3000}
+                         :mid          {:from 3000
+                                        :to 1500}
+                         :in-close     {:from 1500
+                                        :to 600}
+                         ;; Ramp distance is automatically the end of the carrier
+                         ;; until touchdown
+                         :at-ramp      {}
+                         ;; In the wires from touchdown until stopped
+                         :in-the-wires {}}})
 
 (def grades
   {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
@@ -253,64 +260,76 @@
                       (::acmi/v pilot)
                       (::acmi/alt pilot)]
         removed? (::acmi/removed? pilot)]
-    (merge
-     {:removed? removed?}
-     (if-not (and (::acmi/u carrier) (::acmi/v carrier))
-       {:approaching? false}
-       (let [carrier-loc  [(::acmi/u carrier)
-                           (::acmi/v carrier)
-                           0]
-             ;; Assume a north heading if we can't find one
-             carrier-hdg  (or (::acmi/heading carrier) 0)
-             landing-loc  (mapv +
-                                (rotate-z (- carrier-hdg)
-                                          (mapv units/ft->m (:landing-point params)))
-                                carrier-loc)
-             [window-width window-length] (:landing-window params)
-             ;; Now into landing space
-             coords       (->> (mapv - pilot-loc landing-loc)
-                               (rotate-z (- carrier-hdg (:recovery-skew params)))
-                               (mapv units/m->ft)
-                               (mapv * [1 -1 1]))
-             [crosstrack-error downrange height]   coords
-             distance     (Math/sqrt (+ (* crosstrack-error crosstrack-error)
-                                        (* downrange downrange)))
-             s            (units/rad->deg (Math/atan2 height distance))
-             d            distance
-             c            (-> (units/rad->deg (Math/asin (/ crosstrack-error distance)))
-                              (+ (if (pos? downrange)
-                                   0
-                                   180)))
-             approaching? (and s d c
-                               (< s (:max-slope params))
-                               (< d (-> params
-                                        :max-dist
-                                        units/nm->ft))
-                               (< (Math/abs c)
-                                  (:max-angle params)))
-             pass-frame   (merge frame
-                                 {::downrange        downrange
-                                  ::crosstrack-error crosstrack-error
-                                  ::lineup           (lineup (:lineup params)
-                                                             window-width
-                                                             crosstrack-error
-                                                             downrange)
-                                  ::glideslope       (glideslope (:glideslope params)
-                                                                 window-length
-                                                                 height
-                                                                 distance
-                                                                 downrange)
-                                  ::height           height
-                                  ::slope            s
-                                  ::distance         d
-                                  ::course-deviation c})]
-         (into (sorted-map)
-               {:landing-loc landing-loc
-                :carrier-loc carrier-loc
-                :pilot-loc pilot-loc
-                :approaching? approaching?
-                :distance d
-                :pass-frame pass-frame}))))))
+    ;; Because we can have pilots that don't show up until later in
+    ;; the file, it's possible that we have no information whatsoever
+    ;; about the pilot at this point. We need to have at least
+    ;; position to do anything useful.
+    (when-not (some nil? pilot-loc)
+      (merge
+       {:removed? removed?}
+       (if-not (and (::acmi/u carrier) (::acmi/v carrier))
+         {:approaching? false}
+         (let [carrier-loc  [(::acmi/u carrier)
+                             (::acmi/v carrier)
+                             0]
+               ;; Assume a north heading if we can't find one
+               carrier-hdg  (or (::acmi/heading carrier) 0)
+               landing-loc  (mapv +
+                                  (rotate-z (- carrier-hdg)
+                                            (mapv units/ft->m (:landing-point params)))
+                                  carrier-loc)
+               [window-width window-length] (:landing-window params)
+               _ (when (or (some nil? pilot-loc)
+                           (some nil? landing-loc))
+                   (log/debug "locs"
+                              :t (::acmi/t frame)
+                              :pilot pilot-id
+                              :pilot-loc pilot-loc
+                              :landing-loc landing-loc))
+               ;; Now into landing space
+               coords       (->> (mapv - pilot-loc landing-loc)
+                                 (rotate-z (- carrier-hdg (:recovery-skew params)))
+                                 (mapv units/m->ft)
+                                 (mapv * [1 -1 1]))
+               [crosstrack-error downrange height]   coords
+               distance     (Math/sqrt (+ (* crosstrack-error crosstrack-error)
+                                          (* downrange downrange)))
+               s            (units/rad->deg (Math/atan2 height distance))
+               d            distance
+               c            (-> (units/rad->deg (Math/asin (/ crosstrack-error distance)))
+                                (+ (if (pos? downrange)
+                                     0
+                                     180)))
+               approaching? (and s d c
+                                 (< s (:max-slope params))
+                                 (< d (-> params
+                                          :max-dist
+                                          units/nm->ft))
+                                 (< (Math/abs c)
+                                    (:max-angle params)))
+               pass-frame   (merge frame
+                                   {::downrange        downrange
+                                    ::crosstrack-error crosstrack-error
+                                    ::lineup           (lineup (:lineup params)
+                                                               window-width
+                                                               crosstrack-error
+                                                               downrange)
+                                    ::glideslope       (glideslope (:glideslope params)
+                                                                   window-length
+                                                                   height
+                                                                   distance
+                                                                   downrange)
+                                    ::height           height
+                                    ::slope            s
+                                    ::distance         d
+                                    ::course-deviation c})]
+           (into (sorted-map)
+                 {:landing-loc landing-loc
+                  :carrier-loc carrier-loc
+                  :pilot-loc pilot-loc
+                  :approaching? approaching?
+                  :distance d
+                  :pass-frame pass-frame})))))))
 
 (s/fdef aoa-data
         :args nil ; TODO
@@ -442,6 +461,44 @@
                                (mapv #(get-in % [::lineup ::deviation]))
                                most-serious-deviation)]}))
 
+(defn assess-deviation
+  "Returns the assessed deviation for the given zone."
+  [{:keys [params path frames zone]}]
+  (let [{:keys [zones weights]} params
+        {:keys [start end]} weights
+        {:keys [from to]} (get zones zone)
+        scores (->> frames
+                    (filterv #(< to (::downrange %) from))
+                    (reduce (fn [scores frame]
+                              (let [{:keys [::degree ::direction]} (get-in frame path)
+                                    downrange (::downrange frame)
+                                    range-proportion (/ (- downrange to) (- from to))
+                                    range-weight (+ start (* range-proportion (- end start)))
+                                    class-weight (get weights degree)
+                                    score (* range-weight
+                                             class-weight)]
+                                (update scores
+                                        [degree direction]
+                                        (fnil + 0)
+                                        score)))
+                            {}))
+        [[degree direction] score] (apply max-key val scores)]
+    [{::degree degree
+      ::direction direction
+      ::score score}]))
+
+(defn assess-zone
+  "Returns assessment of the given zone"
+  [params zone frames]
+  (->> (for [[dimension key] [[::aoa-deviations ::aoa]
+                              [::glideslope-deviations ::glideslope]
+                              [::lineup-deviations ::lineup]]]
+         [dimension (assess-deviation {:params params
+                                       :zone zone
+                                       :path [key ::deviation]
+                                       :frames frames})])
+       (into {})))
+
 (defn hook-pos
   "Returns [crosstrack downrange height] of hook."
   [params frame]
@@ -503,14 +560,16 @@
   (let [augmented-frames (augment-frames params pilot-id frames)
         result (result params augmented-frames)]
     {::result result
-     ::start (assess-start params augmented-frames)
-     ::mid (assess-mid params augmented-frames)
+     ::start (assess-zone params :start augmented-frames)
+     ::mid (assess-zone params :mid augmented-frames)
+     ::in-close (assess-zone params :in-close augmented-frames)
      ::wire (when (= result :trap)
               (assess-wire params augmented-frames))
      ::frames augmented-frames}))
 
 (defn find-passes
-  "Returns a seq of assessments found for the given pilot and carrier."
+  "Returns a seq of seq of pass frames found for the given pilot and
+  carrier."
   [file carrier-id pilot-id params]
   (loop [[frame & frames] (::acmi/frames file)
          start nil
@@ -556,9 +615,10 @@
                      nil
                      nil
                      []
-                     (conj passes (assess-pass params
+                     (conj passes (into pass-frames* coda-frames)
+                           #_(assess-pass params
                                                pilot-id
-                                               (into pass-frames* coda-frames)))))
+                                    ))))
             ;; Nope - go back to looking
             (recur frames
                    nil
@@ -577,6 +637,24 @@
 (def carrier-id acmi/id)
 (def pilot-id acmi/id)
 
+(defn carriers
+  [file]
+  (let [entities (-> file ::acmi/frames last acmi/entities)]
+    (->> entities
+         (filter (fn [[id properties]]
+                   (-> properties
+                       ::acmi/object-type
+                       (get "AircraftCarrier"))))
+         (map first))))
+
+(defn pilots
+  [file]
+  (let [entities (-> file ::acmi/frames last acmi/entities)]
+    (->> entities
+         (filter (fn [[id properties]]
+                   (::acmi/pilot properties)))
+         (map first))))
+
 (s/fdef passes
         :args acmi/file
         :ret (s/map-of carrier-id (s/map-of pilot-id (s/* assessment))))
@@ -585,21 +663,13 @@
   "Returns a map from IDs of carriers to map of pilot ids to sequences
   of pass assessments."
   [file params]
-  (let [entities (-> file ::acmi/frames last acmi/entities)
-        carriers (->> entities
-                      (filter (fn [[id properties]]
-                                (-> properties
-                                    ::acmi/object-type
-                                    (get "AircraftCarrier"))))
-                      (map first))
-        pilots    (->> entities
-                       (filter (fn [[id properties]]
-                                 (::acmi/pilot properties)))
-                       (map first))]
+  (let [carriers (carriers file)
+        pilots   (pilots file)]
     (reduce (fn [m [carrier-id pilot-id]]
               (assoc-in m
                         [carrier-id pilot-id]
-                        (find-passes file carrier-id pilot-id params)))
+                        (mapv #(assess-pass params pilot-id %)
+                              (find-passes file carrier-id pilot-id params))))
             {}
             (for [carrier-id carriers
                   pilot-id pilots]
