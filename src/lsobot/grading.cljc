@@ -473,7 +473,7 @@
                               (let [{:keys [::degree ::direction]} (get-in frame path)
                                     downrange (::downrange frame)
                                     range-proportion (/ (- downrange to) (- from to))
-                                    range-weight (+ start (* range-proportion (- end start)))
+                                    range-weight (+ end (* range-proportion (- start end)))
                                     class-weight (get weights degree)
                                     score (* range-weight
                                              class-weight)]
