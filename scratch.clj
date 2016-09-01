@@ -651,3 +651,6 @@
 (let [path "acmi/Training Trap5.txt.acmi"
       file (-> path slurp acmi/read-acmi)]
   (count (grading/passes file grading/default-parameters)))
+
+
+Bolter incorrect: CVN70 Vinson	Drillin	01/10:52:11

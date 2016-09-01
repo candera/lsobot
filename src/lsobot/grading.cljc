@@ -66,13 +66,13 @@
 ;; Distances in feet.
 
 (def default-parameters
-  {:min-time            10  ; Seconds
-   :max-slope           10  ; Degrees
-   :max-angle           20  ; Degrees
-   :min-dist            0.4 ; Pass has to start at least this far away (nm).
+  {:min-time            10  ; Seconds - pass has to last at least this long
+   :max-slope           6  ; Degrees - pass has to start on this glideslope or less
+   :max-angle           20  ; Degrees - pass has to start within this lineup
+   :min-dist            0.5 ; Pass has to start at least this far away (nm).
                                         ; Prevents things like detecting a pass starting
                                         ; on the deck.
-   :max-dist            1.5   ; Pass starts no farther away than this (nm).
+   :max-dist            1.0   ; Pass starts no farther away than this (nm).
    :recovery-skew       11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda                5      ; Seconds of data to keep after approach ends
@@ -99,7 +99,7 @@
    :hook-offset         [0.00 18.04 -6.87] ; In carrier coordinates, offset from
                                         ; pilot location. Feet.
 
-   :trap-speed          (units/kts->ft-per-sec 40) ; Must slow to below this
+   :trap-speed          (units/kts->ft-per-sec 70) ; Must slow to below this
                                         ; speed to be considered to
                                         ; have caught a wire. ft/s
 
