@@ -32,6 +32,18 @@
   [acmi id prop]
   (-> acmi ::acmi/frames last ::acmi/entities (get-in [id prop])))
 
+;; Polyfill for !@#$!#$ Internet Explorer
+(when-not (-> js/String .-prototype .-startsWith)
+  (log/debug "Setting IE polyfill for String.startsWith")
+  (-> js/String
+      .-prototype
+      .-startsWith
+      (set! (fn [s pos]
+              (let [pos* (or pos 0)]
+                (this-as me
+                  (= pos* (.indexOf me s pos*))))))))
+
+
 ;;; State
 
 (defc show-debug? false)
@@ -99,6 +111,7 @@
                              (async/close! ch))))
     (.click i)
     (go
+      (log/debug "Got here")
       (let [e (<! ch)]
         (when-let [file (aget (.. e -target -files) 0)]
           (let [reader (js/FileReader.)]
@@ -107,8 +120,10 @@
                 (set! #(do
                          (reset! loading? true)
                          (go
+                           (log/debug "Got here, too")
                            ;; Give the loading changes to take
                            (<! (async/timeout 100))
+                           (log/debug "And then got here.")
                            (let [contents (-> % .-target .-result)]
                              (dosync
                               (reset! acmi (acmi/read-acmi contents))
@@ -435,155 +450,167 @@ L30 1100")))
    [pass-parameters selected-pass]
    (let [{:keys [west east high low]} view-bounds
          [x y z] (:landing-point (log/spy pass-parameters))]
-     (svg/svg
-      :attr {"xmlns" "http://www.w3.org/2000/svg"}
-      :viewBox (gstring/format "%d %d %d %d"
-                               west
-                               (- high z)
-                               (- east west)
-                               (- high low))
-      :id "elevation"
-      (svg/g
-       :transform (gstring/format "scale(1 -1) translate(0 %f)"
-                                  (* -2 high))
-       (svg/rect
-        :attr {:class "sky"}
-        :x west
-        :y (- z)
-        :width (- east west)
-        :height (+ (* 2 z) high))
-       (carrier-elevation z)
-       (zones pass-parameters
-              low
-              (+ high z)
-              (- (- (* elevation-exaggeration z)) high)
-              (gstring/format "scale(1 -1) translate(0 %f)"
-                              (- (+ low z)))
-              "elevation")
-       ;; Colored glideslope guidelines
-       (let [params (:glideslope pass-parameters)
-             guideline (fn [angle class tx]
-                         [(svg/line
-                           :attr {:class (str "elevation guideline glideslope "
-                                              class)}
-                           :transform (gstring/format "translate(%f 0) rotate(%f)"
-                                                      tx
-                                                      (* angle elevation-exaggeration))
-                           :x1 0
-                           :y1 0
-                           :x2 (* 2 east)
-                           :y2 0)
-                          (svg/text
-                           :transform (gstring/format "translate(%f 0) rotate(%f) scale(1 -1)"
-                                                      tx
-                                                      (* angle elevation-exaggeration))
-                           :attr {:class (str "axis-label elevation glideslope " class)}
-                           :x (- east 500)
-                           :y -20
-                           (str angle "°"))])]
-         (svg/g
-          (guideline (:ideal params) "ideal" 0)
-          (for [[k1 m] (select-keys params [:good :minor :major])
-                [k2 v] (select-keys m [:low :high])
-                :let [class (str (name k1) " " (name k2))
-                      tx (-> pass-parameters
-                             :landing-window
-                             second
-                             (/ 2))]]
-            (guideline v class (if (= k2 :low)
-                                 tx
-                                 (- tx))))))
-       ;; Guidelines for assessment zones/phases
-       (svg/line
-        :attr {:class "elevation guideline zone"}
-        :x1 west
-        :y1 (* (- 450 z) elevation-exaggeration)
-        :x2 east
-        :y2 (* (- 450 z) elevation-exaggeration))
-       (svg/text
-        :transform "scale(1 -1)"
-        :attr {:class "axis-label elevation height zone"}
-        :x (+ west 20)
-        :y (* (- z 460) elevation-exaggeration)
-        "450")
-       ;; A nil stops rendering. But an empty collection does not
-       (if selected-pass
-         (elevation-path pass-parameters selected-pass)
-         [])
-       (svg/circle
-        :attr {:class "landing-point-dot"}
-        :cx 0
-        :cy 0
-        :r 20)
-       )))))
+     (div
+      :class "svg-container"
+      :css {"padding-bottom" (-> (- high low)
+                                 (/ (- east west))
+                                 (* 100.0)
+                                 (str "%"))}
+      (svg/svg
+       :attr {"xmlns" "http://www.w3.org/2000/svg"}
+       :viewBox (gstring/format "%d %d %d %d"
+                                west
+                                (- high z)
+                                (- east west)
+                                (- high low))
+       :id "elevation"
+       (svg/g
+        :transform (gstring/format "scale(1 -1) translate(0 %f)"
+                                   (* -2 high))
+        (svg/rect
+         :attr {:class "sky"}
+         :x west
+         :y (- z)
+         :width (- east west)
+         :height (+ (* 2 z) high))
+        (carrier-elevation z)
+        (zones pass-parameters
+               low
+               (+ high z)
+               (- (- (* elevation-exaggeration z)) high)
+               (gstring/format "scale(1 -1) translate(0 %f)"
+                               (- (+ low z 50)))
+               "elevation")
+        ;; Colored glideslope guidelines
+        (let [params (:glideslope pass-parameters)
+              guideline (fn [angle class tx]
+                          [(svg/line
+                            :attr {:class (str "elevation guideline glideslope "
+                                               class)}
+                            :transform (gstring/format "translate(%f 0) rotate(%f)"
+                                                       tx
+                                                       (* angle elevation-exaggeration))
+                            :x1 0
+                            :y1 0
+                            :x2 (* 2 east)
+                            :y2 0)
+                           (svg/text
+                            :transform (gstring/format "translate(%f 0) rotate(%f) scale(1 -1)"
+                                                       tx
+                                                       (* angle elevation-exaggeration))
+                            :attr {:class (str "axis-label elevation glideslope " class)}
+                            :x (- east 500)
+                            :y -20
+                            (str angle "°"))])]
+          (svg/g
+           (guideline (:ideal params) "ideal" 0)
+           (for [[k1 m] (select-keys params [:good :minor :major])
+                 [k2 v] (select-keys m [:low :high])
+                 :let [class (str (name k1) " " (name k2))
+                       tx (-> pass-parameters
+                              :landing-window
+                              second
+                              (/ 2))]]
+             (guideline v class (if (= k2 :low)
+                                  tx
+                                  (- tx))))))
+        ;; Guidelines for assessment zones/phases
+        (svg/line
+         :attr {:class "elevation guideline zone"}
+         :x1 west
+         :y1 (* (- 450 z) elevation-exaggeration)
+         :x2 east
+         :y2 (* (- 450 z) elevation-exaggeration))
+        (svg/text
+         :transform "scale(1 -1)"
+         :attr {:class "axis-label elevation height zone"}
+         :x (+ west 20)
+         :y (* (- z 460) elevation-exaggeration)
+         "450")
+        ;; A nil stops rendering. But an empty collection does not
+        (if selected-pass
+          (elevation-path pass-parameters selected-pass)
+          [])
+        (svg/circle
+         :attr {:class "landing-point-dot"}
+         :cx 0
+         :cy 0
+         :r 20)
+        ))))))
 
 (def plan
   "Draws the top view of the pass."
   (let [{:keys [west east north south]} view-bounds]
-    (svg/svg
-     :attr {"xmlns" "http://www.w3.org/2000/svg"}
-     :id "plan"
-     :viewBox (gstring/format "%d %d %d %d"
-                              west
-                              north
-                              (- east west)
-                              (- south north))
-     (carrier-plan)
-     (svg/line
-      :attr {:class "plan angle zero guideline"}
-      :x1 west
-      :y1 0
-      :x2 east
-      :y2 0)
-     (formula-of
-      [pass-parameters]
-      (svg/g
-       (zones pass-parameters
-             north
-             south
-             (+ (- north south) 200)
-             (gstring/format "translate(0 %f)" south)
-             "plan")
-       (let [params (:lineup pass-parameters)]
-         (for [[k1 m] (select-keys params [:good :minor :major])
-               [k2 v] (select-keys m [:low :high])]
-           (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)
-                 ty (-> pass-parameters
-                        :landing-window
-                        first
-                        (/ 2)
-                        (* (if (= k2 :low)
-                             -1
-                             1)))]
-             [(svg/line
-               :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
-               :attr {:class (str "plan angle guideline "
-                                  (name k1) " " (name k2))}
-               :x1 0
-               :y1 0
-               :x2 (* east 2)
-               :y2 0)
-              (svg/text
-               :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
-               :attr {:class (str "axis-label plan angle "
-                                  (name k1) " " (name k2))}
-               :x (- east 500)
-               :y -20
-               (str (.toFixed v 1) "°"))])))))
-     (svg/g
-      ;; We need to invert the y axis because of the way the coordinate
-      ;; systems interact: in landing space, crosstrack error increases
-      ;; to the right
-      :transform "scale(1 -1)"
+    (div
+     :class "svg-container"
+     :css {"padding-bottom" (-> (- south north)
+                                (/ (- east west))
+                                (* 100.0 )
+                                (str "%"))}
+     (svg/svg
+      :attr {"xmlns" "http://www.w3.org/2000/svg"}
+      :id "plan"
+      :viewBox (gstring/format "%d %d %d %d"
+                               west
+                               north
+                               (- east west)
+                               (- south north))
+      (carrier-plan)
+      (svg/line
+       :attr {:class "plan angle zero guideline"}
+       :x1 west
+       :y1 0
+       :x2 east
+       :y2 0)
       (formula-of
-       [selected-pass pass-parameters]
-       (when selected-pass
-         (plan-path (:lineup pass-parameters) selected-pass)))
-      (svg/circle
-       :attr {:class "landing-point-dot"}
-       :cx 0
-       :cy 0
-       :r 20)))))
+       [pass-parameters]
+       (svg/g
+        (zones pass-parameters
+               north
+               south
+               (+ (- north south) 200)
+               (gstring/format "translate(0 %f)" (- south 50))
+               "plan")
+        (let [params (:lineup pass-parameters)]
+          (for [[k1 m] (select-keys params [:good :minor :major])
+                [k2 v] (select-keys m [:low :high])]
+            (let [angle (-> v units/deg->rad exaggerate-angle units/rad->deg)
+                  ty (-> pass-parameters
+                         :landing-window
+                         first
+                         (/ 2)
+                         (* (if (= k2 :low)
+                              -1
+                              1)))]
+              [(svg/line
+                :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
+                :attr {:class (str "plan angle guideline "
+                                   (name k1) " " (name k2))}
+                :x1 0
+                :y1 0
+                :x2 (* east 2)
+                :y2 0)
+               (svg/text
+                :transform (gstring/format "translate(0 %f) rotate(%f)" ty angle)
+                :attr {:class (str "axis-label plan angle "
+                                   (name k1) " " (name k2))}
+                :x (- east 500)
+                :y -20
+                (str (.toFixed v 1) "°"))])))))
+      (svg/g
+       ;; We need to invert the y axis because of the way the coordinate
+       ;; systems interact: in landing space, crosstrack error increases
+       ;; to the right
+       :transform "scale(1 -1)"
+       (formula-of
+        [selected-pass pass-parameters]
+        (when selected-pass
+          (plan-path (:lineup pass-parameters) selected-pass)))
+       (svg/circle
+        :attr {:class "landing-point-dot"}
+        :cx 0
+        :cy 0
+        :r 20))))))
 
 (def titlebar
   (div :id "titlebar"
@@ -876,10 +903,14 @@ L30 1100")))
   (div
    :id "graphs"
    (div
-    (div :class "graph-label" "Glideslope")
+    (div
+     :class "graph-label-wrapper"
+     (div :class "graph-label" "Glideslope"))
     elevation)
    (div
-    (div :class "graph-label" "Lineup")
+    (div
+     :class "graph-label-wrapper"
+     (div :class "graph-label" "Lineup"))
     plan))
   ;; Debug support
   (button
@@ -891,40 +922,40 @@ L30 1100")))
     (formula-of
      [pass-parameters]
      (let [temp-parameters (cell pass-parameters)]
-      (fieldset
-       :toggle show-debug?
-       :id "debug-weights"
-       (legend "Assessment Weights")
-       (table
-        (thead
-         (tr
-          (th "Param")
-          (th "Default")
-          (th "Current")
-          (th "Change to")))
-        (tbody
-         (for [[k label] [[:start "Zone Start"]
-                          [:end "Zone End"]
-                          [:ideal "Ideal"]
-                          [:good "Good"]
-                          [:minor "Minor Deviation"]
-                          [:major "Major Deviation"]
-                          [:unacceptable "Unacceptable Deviation"]]
-               :let [path [:weights k]
-                     id (str (gensym))]]
-           (tr
-            (td label)
-            (td (str (get-in grading/default-parameters path)))
-            (td (cell= (get-in pass-parameters-cell path)))
-            (td (input :id id
-                       :type "text"
-                       :value (cell= (get-in temp-parameters path))
-                       :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
-       (button
-        ;; This dosync is a filthy hack, but I had to do it to make things
-        ;; work right.
-        :click #(dosync (reset! pass-parameters-cell @temp-parameters))
-        "Apply")))))))
+       (fieldset
+        :toggle show-debug?
+        :id "debug-weights"
+        (legend "Assessment Weights")
+        (table
+         (thead
+          (tr
+           (th "Param")
+           (th "Default")
+           (th "Current")
+           (th "Change to")))
+         (tbody
+          (for [[k label] [[:start "Zone Start"]
+                           [:end "Zone End"]
+                           [:ideal "Ideal"]
+                           [:good "Good"]
+                           [:minor "Minor Deviation"]
+                           [:major "Major Deviation"]
+                           [:unacceptable "Unacceptable Deviation"]]
+                :let [path [:weights k]
+                      id (str (gensym))]]
+            (tr
+             (td label)
+             (td (str (get-in grading/default-parameters path)))
+             (td (cell= (get-in pass-parameters-cell path)))
+             (td (input :id id
+                        :type "text"
+                        :value (cell= (get-in temp-parameters path))
+                        :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
+        (button
+         ;; This dosync is a filthy hack, but I had to do it to make things
+         ;; work right.
+         :click #(dosync (reset! pass-parameters-cell @temp-parameters))
+         "Apply")))))))
 
 ;; Keypresses handler was getting registered more than once when the
 ;; code would reload, which is super annoying.

@@ -89,15 +89,16 @@ body {
     width: 100%;
 }
 
+.graph-label-wrapper {
+   background: black;
+   width: 100%;
+}
+
 .graph-label {
     display: inline-block;
-    background: black;
     color: white;
     font-weight: 600;
-    /* font-size: 115%; */
-    width: 100%;
-    padding-left: 2px;
-    /* right: 0; */
+    padding-left: 4px;
 }
 
 #passes td {
@@ -268,7 +269,9 @@ span.assessment-symbol {
 .header-1 th,
 .header-2 th {
     min-width: 20px;
+    font-weight: normal;
 }
+
 
 .zone-dim-label, .zone-label {
     background: black;
@@ -377,6 +380,7 @@ span.assessment-symbol {
 
 .zone {
     opacity: 1.0;
+    fill: yellow;
     stroke: yellow;
     stroke-dasharray: 50 30;
 }
@@ -401,4 +405,22 @@ span.assessment-symbol {
 
 .assessment-cell .perfect {
     text-decoration: underline;
+}
+
+.svg-container {
+    position: relative;
+    height: 0;
+    width: 100%;
+    padding: 0;
+    padding-bottom: 100%;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+svg {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    left: 0;
+    top: 0;
 }
