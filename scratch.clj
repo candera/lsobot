@@ -652,5 +652,18 @@
       file (-> path slurp acmi/read-acmi)]
   (count (grading/passes file grading/default-parameters)))
 
+(let [path "acmi/Training Trap5.txt.acmi"
+      file (-> path slurp acmi/read-acmi)]
+  (count (grading/passes file grading/default-parameters)))
 
-Bolter incorrect: CVN70 Vinson	Drillin	01/10:52:11
+(let [path "acmi/Training Trap5.txt.acmi"
+      flounder "2c32d33300000001"
+      sting21 "2c32d33300000009"
+      sting22 "2c32d3330000000a"
+      pilot sting21
+      vinson "2c32d33300000008"
+      file (-> path slurp acmi/read-acmi)]
+  (->> file
+       ::acmi/frames
+       (mapcat ::acmi/events)
+       pprint))

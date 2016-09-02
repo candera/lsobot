@@ -33,3 +33,15 @@
   [kts]
   (* kts 1.68781))
 
+(defn s->dhms
+  [t]
+  (let [s (mod t 60)
+        t (long (/ t 60))
+        m (mod t 60)
+        t (long (/ t 60))
+        h (mod t 24)
+        d (long (/ t 24))]
+    {:d (inc d)
+     :h h
+     :m m
+     :s s}))

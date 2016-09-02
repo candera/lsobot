@@ -25,13 +25,8 @@
 (defn time-str
   [acmi t]
   ;; For now we're just going to assume the reference time is midnight
-  (let [s (mod t 60)
-        t (long (/ t 60))
-        m (mod t 60)
-        t (long (/ t 60))
-        h (mod t 24)
-        d (long (/ t 24))]
-    (gstring/format "%02d/%02d:%02d:%02d" (inc d) h m s)))
+  (let [{:keys [d h m s]} (units/s->dhms t)]
+    (gstring/format "%02d/%02d:%02d:%02d" d h m (long s))))
 
 (defn property
   [acmi id prop]
@@ -40,6 +35,8 @@
 ;;; State
 
 (defc pass-parameters grading/default-parameters)
+
+(defc acmi-name nil)
 
 (defc acmi nil)
 
@@ -63,14 +60,6 @@
 (defformula passes
   [acmi pass-parameters]
   (get-passes acmi pass-parameters))
-
-(defformula final-entities
-  [acmi]
-  (-> acmi
-      ::acmi/frames
-      last
-      second
-      ::acmi/entities))
 
 (defn next-pass
   "Moves to the next pass in the list, if there is one."
@@ -121,6 +110,7 @@
                            (let [contents (-> % .-target .-result)]
                              (dosync
                               (reset! acmi (acmi/read-acmi contents))
+                              (reset! acmi-name (.-name file))
                               (reset! selected-pass
                                       (when (= 1 (count @passes))
                                         (first @passes)))
@@ -320,6 +310,7 @@ L30 1100")))
            {:keys [::grading/value ::grading/deviation]} glideslope]
        [(svg/circle
          :attr {:glideslope value
+                :hook (nth (::grading/hook-pos frame) 2)
                 :t t
                 :class (deviation-classes "glideslope-data" deviation)}
          :cx downrange
@@ -329,10 +320,7 @@ L30 1100")))
           []
           (let [aoa (-> frame ::grading/aoa ::grading/value)]
             (svg/circle
-             :attr {:aoa aoa
-                    :pitch (-> frame ::grading/pilot ::acmi/pitch)
-                    :path-a (-> frame ::grading/path-a)
-                    :class (deviation-classes "aoa-deviation"
+             :attr {:class (deviation-classes "aoa-deviation"
                                               (-> frame
                                                   ::grading/aoa
                                                   ::grading/deviation))}
@@ -713,6 +701,7 @@ L30 1100")))
   (case (-> assessment ::grading/result)
     :bolter "B"
     :waveoff "WO"
+    :trap (-> assessment ::grading/wire)
     ""))
 
 (defn remarks-cell
@@ -863,7 +852,7 @@ L30 1100")))
    [acmi]
    (if-not acmi
      (div "No ACMI file loaded")
-     []))
+     (div "Loaded ACMI: " acmi-name)))
   (assessment passes selected-pass limit-displayed-passes?)
   (div
    :id "graphs"

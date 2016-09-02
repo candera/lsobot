@@ -29,13 +29,7 @@
 (defn time-str
   [acmi t]
   ;; For now we're just going to assume the reference time is midnight
-  (let [s (long (mod t 60))
-        t (long (/ t 60))
-        m (mod t 60)
-        t (long (/ t 60))
-        h (mod t 24)
-        d (long (/ t 24))]
-    (format "%02d/%02d:%02d:%02d" (inc d) h m s)))
+)
 
 (def symbol-mapping
   {:aoa {:low "F"

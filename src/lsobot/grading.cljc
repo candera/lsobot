@@ -249,6 +249,24 @@
      ::deviation (when (pos? downrange)
                    (classify params value))}))
 
+(defn hook-pos
+  "Returns [crosstrack downrange height] of hook."
+  [params frame]
+  (let [pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
+        [hx hy hz] (:hook-offset params)
+        ;; x assumed to be zero
+        y (- (* hy (Math/cos pitch))
+             (* hz (Math/sin pitch)))
+        z (+ (* hz (Math/cos pitch))
+             (* hy (Math/sin pitch)))]
+    [(-> frame ::crosstrack-error)
+     (-> frame
+         ::downrange
+         (+ y))
+     (-> frame
+         ::height
+         (+ z))]))
+
 (defn characterize-frame
   [carrier-id pilot-id params frame]
   (let [{:keys [::acmi/t ::acmi/entities]} frame
@@ -442,31 +460,51 @@
                                        :to to})])
        (into {})))
 
-(defn hook-pos
-  "Returns [crosstrack downrange height] of hook."
-  [params frame]
-  (let [pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
-        [hx hy hz] (:hook-offset params)
-        ;; x assumed to be zero
-        y (- (* hy (Math/cos pitch))
-             (* hz (Math/sin pitch)))
-        z (+ (* hz (Math/cos pitch))
-             (* hy (Math/sin pitch)))]
-    [(-> frame ::crosstrack-error)
-     (-> frame
-         ::downrange
-         (+ y))
-     (-> frame
-         ::height
-         (+ z))]))
-
 (defn assess-wire
   "Returns a wire number, or nil if wire cannot be determined."
   [params frames]
-  (let [{:keys [wire-interval]}  params
-        ;; TODO
-        ]
-    ))
+  (let [{:keys [wire-interval hook-offset touchdown-height]}  params
+        aloft (->> frames
+                   (filterv #(-> %
+                                 ::hook-pos
+                                 (nth 2)
+                                 pos?)))
+        last-aloft (last aloft)
+        [_ hook-downrange hook-height] (::hook-pos last-aloft)
+        hook-contact (+ hook-downrange
+                        (/ (::height last-aloft)
+                           (Math/tan (units/deg->rad (::path-a last-aloft)))))]
+    (let [penultimate (->> aloft butlast last)
+          last-aloft penultimate
+          [_ hook-downrange hook-height] (::hook-pos last-aloft)
+          hook-contact (+ hook-downrange
+                          (/ (::height last-aloft)
+                             (Math/tan (units/deg->rad (::path-a last-aloft)))))]
+      (log/debug "assess-wire penultimate"
+                 :t (::acmi/t last-aloft)
+                 :start (->> frames first ::acmi/t units/s->dhms)
+                 :hook-downrange hook-downrange
+                 :hook-height hook-height
+                 :hook-contact hook-contact
+                 :path-a (::path-a last-aloft)))
+    (log/debug "assess-wire last"
+               :t (::acmi/t last-aloft)
+               :start (->> frames first ::acmi/t units/s->dhms)
+               :hook-downrange hook-downrange
+               :hook-height hook-height
+               :hook-contact hook-contact
+               :path-a (::path-a last-aloft))
+    (cond
+      (< (* 2.5 wire-interval) hook-contact)
+      1
+
+      (< (/ 2 wire-interval) hook-contact)
+      2
+
+      (< (- (/ wire-interval 2)) hook-contact)
+      3
+
+      :else 4)))
 
 (defn augment-frames
   "Augment the pass frames with any data that has to be derived from
@@ -483,11 +521,14 @@
                                   (if (= last-pos pos)
                                     acc
                                     (assoc acc
-                                           :frames (conj frames
-                                                         (assoc frame
-                                                                ::pos (mapv units/m->ft pos)
-                                                                ::pilot p))
-                                           :last-pos pos))))
+                                           :frames
+                                           (conj frames
+                                                 (assoc frame
+                                                        ::pos (mapv units/m->ft pos)
+                                                        ::hook-pos (hook-pos params frame)
+                                                        ::pilot p))
+                                           :last-pos
+                                           pos))))
                               {:frames []
                                :last-pos nil})
                              :frames)]
