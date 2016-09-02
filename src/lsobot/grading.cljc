@@ -403,70 +403,11 @@
       :else
       :waveoff)))
 
-(s/fdef assess-start
-        :args frames
-        :ret comments)
-
-(defn assess-start
-  "Returns assessment of start"
-  [params frames]
-  (let [dist (-> params
-                 :zones
-                 :start
-                 ;; TODO: make this a from/to zone instead
-                 :from)
-        frame (->> frames
-                   (filterv #(< (::downrange %) dist))
-                   first)]
-    {::aoa-deviations [(-> frame ::aoa ::deviation)]
-     ::glideslope-deviations [(-> frame ::glideslope ::deviation)]
-     ::lineup-deviations [(-> frame ::lineup ::deviation)]}))
-
-(defn most-serious-deviation
-  "Returns the most serious deviation from a sequence of deviations."
-  [deviations]
-  (let [rank {:ideal        0
-              :good         1
-              :minor        2
-              :major        3
-              :unacceptable 4}
-        seriousness (fn [[deviation count]]
-                      [(- (rank (::degree deviation))) (- count)])]
-    (->> deviations
-         frequencies
-         (sort-by seriousness)
-         first
-         first)))
-
-(s/fdef assess-mid
-        :args frames
-        :ret comments)
-
-(defn assess-mid
-  "Returns assessment of mid-phase."
-  [params frames]
-  (let [from (-> params :zones :start :from)
-        to (-> params :zones :start :to)
-        phase-frames (->> frames
-                          (filterv #(< to (::downrange %) from)))]
-    ;; For now, we return only a single deviation, which is the most
-    ;; common, most serious one.
-    {::aoa-deviations [(->> phase-frames
-                            (mapv #(get-in % [::aoa ::deviation]))
-                            most-serious-deviation)]
-     ::glideslope-deviations [(->> phase-frames
-                                   (mapv #(get-in % [::glideslope ::deviation]))
-                                   most-serious-deviation)]
-     ::lineup-deviations [(->> phase-frames
-                               (mapv #(get-in % [::lineup ::deviation]))
-                               most-serious-deviation)]}))
-
 (defn assess-deviation
   "Returns the assessed deviation for the given zone."
-  [{:keys [params path frames zone]}]
-  (let [{:keys [zones weights]} params
+  [{:keys [params path frames from to]}]
+  (let [{:keys [weights]} params
         {:keys [start end]} weights
-        {:keys [from to]} (get zones zone)
         scores (->> frames
                     (filterv #(< to (::downrange %) from))
                     (reduce (fn [scores frame]
@@ -489,14 +430,16 @@
 
 (defn assess-zone
   "Returns assessment of the given zone"
-  [params zone frames]
+  [{:keys [params zone frames from to]}]
   (->> (for [[dimension key] [[::aoa-deviations ::aoa]
                               [::glideslope-deviations ::glideslope]
                               [::lineup-deviations ::lineup]]]
          [dimension (assess-deviation {:params params
                                        :zone zone
                                        :path [key ::deviation]
-                                       :frames frames})])
+                                       :frames frames
+                                       :from from
+                                       :to to})])
        (into {})))
 
 (defn hook-pos
@@ -558,11 +501,30 @@
   pass. Returns the assessment."
   [params pilot-id frames]
   (let [augmented-frames (augment-frames params pilot-id frames)
-        result (result params augmented-frames)]
+        result (result params augmented-frames)
+        {:keys [touchdown-height zones]}  params
+        touchdown (when (#{:bolter :trap} result)
+                    (->> augmented-frames
+                         (filter #(< (::height %) touchdown-height))
+                         first
+                         ::downrange))]
     {::result result
-     ::start (assess-zone params :start augmented-frames)
-     ::mid (assess-zone params :mid augmented-frames)
-     ::in-close (assess-zone params :in-close augmented-frames)
+     ::start (assess-zone {:params params
+                           :frames augmented-frames
+                           :from (-> zones :start :from)
+                           :to (-> params :zones :start :to)})
+     ::mid (assess-zone {:params params
+                         :frames augmented-frames
+                         :from (-> zones :mid :from)
+                         :to (-> zones :mid :to)})
+     ::in-close (assess-zone {:params params
+                              :frames augmented-frames
+                              :from (-> zones :in-close :from)
+                              :to (-> zones :in-close :to)})
+     ::at-ramp (assess-zone {:params params
+                             :frames augmented-frames
+                             :from (-> zones :in-close :to)
+                             :to (or touchdown 0)})
      ::wire (when (= result :trap)
               (assess-wire params augmented-frames))
      ::frames augmented-frames}))

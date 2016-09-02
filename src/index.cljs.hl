@@ -423,11 +423,21 @@ L30 1100")))
        (svg/text
         :transform text-transform
         :attr {:class (str class " axis-label range zone")}
-        :x midpoint
+        :x (- midpoint 60)
         :y zone-label-y
         (zone {:start    "X"
                :mid      "IM"
-               :in-close "IC"}))))))
+               :in-close "IC"})))
+     (let [ar-start (-> params :zones :in-close :to)
+           {:keys [ramp-to-1-wire wire-interval]} params
+           ar-end 0
+           midpoint (/ (+ ar-start ar-end) 2)]
+       (svg/text
+        :transform text-transform
+        :attr {:class (str class " axis-label range zone")}
+        :x (- midpoint 60)
+        :y zone-label-y
+        "AR")))))
 
 (def elevation
   "Draws the side view of the pass."
@@ -683,12 +693,18 @@ L30 1100")))
   [assessment]
   (glideslope-and-speed-cell ::grading/in-close assessment))
 
-(def ar-cell not-implemented-cell)
+(defn ar-cell
+  [assessment]
+  (when (#{:trap :bolter} (::grading/result assessment))
+    (glideslope-and-speed-cell ::grading/at-ramp assessment)))
+
 (def power-cell not-implemented-cell)
 (def att-cell not-implemented-cell)
 (defn lineup-and-wing-cell
   [assessment]
-  (for [phase [::grading/start ::grading/mid ::grading/in-close]
+  (for [phase (into [::grading/start ::grading/mid ::grading/in-close]
+                    (when (#{:trap :bolter} (::grading/result assessment))
+                      [::grading/at-ramp]))
         deviation (get-in assessment [phase ::grading/lineup-deviations])]
     (assessment-symbol ::grading/lineup-deviations deviation phase)))
 
