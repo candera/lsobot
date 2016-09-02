@@ -651,14 +651,25 @@ L30 1100")))
 
 (defn not-implemented-cell
   [assessment]
-  "-")
+  (span :class "not-implemented"))
 
 (defn grade-cell
   [assessment]
-  (case (-> assessment ::grading/result)
-    :bolter "B"
-    :waveoff "WO"
-    ""))
+  (case (-> assessment ::grading/grade)
+    ::grading/bolter "B"
+    ::grading/waveoff "WO"
+    ::grading/ok+ (span :class "perfect" "OK")
+    ::grading/ok "OK"
+    ::grading/fair "(OK)"
+    ::grading/none "-"
+    ::grading/cut-pass "C"))
+
+(defn score-cell
+  [assessment]
+  (-> assessment
+      ::grading/grade
+      grading/grades
+      (:score "")))
 
 (def aw-cell not-implemented-cell)
 
@@ -706,10 +717,11 @@ L30 1100")))
 
 (defn remarks-cell
   [assessment]
-  (case (-> assessment ::grading/result)
-    :trap "Trap"
-    :ramp-strike "Ramp strike"
-    ""))
+  (span :class "remark"
+        (case (-> assessment ::grading/result)
+          :trap "Trap"
+          :ramp-strike "Ramp strike"
+          "")))
 
 (defn assessment
   "Returns UI for the assessment section"
@@ -732,7 +744,7 @@ L30 1100")))
           (if limit-displayed-passes?
             "Show all passes"
             "Only show selected pass")))))
-     (th :class "gs-speed-errors" :colspan 6 "Glideslope and Speed Errors")
+     (th :class "gs-speed-errors" :colspan 7 "Glideslope and Speed Errors")
      (th :class "control-errors" :colspan 2 "Control Errors")
      (th :class "lineup-and-wing" :rowspan 2 "Lineup " (br) "& Wing")
      (th :class "wire" :rowspan 2 "Wire #")
@@ -744,6 +756,7 @@ L30 1100")))
      (th :class "pilot"  "Pilot")
      (th :class "start" "Time")
      (th :class "grade" "Grade")
+     (th :class "score" "Score")
      (th :class "aw" "AW")
      (th :class "x" "X")
      (th :class "im" "IM")
@@ -756,7 +769,7 @@ L30 1100")))
       (formula-of
        [passes selected-pass limit-displayed-passes?]
        (if (empty? passes)
-         (tr (td :class "none-loaded" :colspan 15 "No Passes Detected"))
+         (tr (td :class "none-loaded" :colspan 16 "No Passes Detected"))
          (for [pass passes
                :let [{:keys [carrier pilot start assessment]} pass
                      frames (::grading/frames assessment)
@@ -782,6 +795,7 @@ L30 1100")))
             (td+ "start"
                  (constantly start))
             (td+ "grade" grade-cell)
+            (td+ "score" score-cell)
             (td+ "aw" aw-cell)
             (td+ "x" x-cell)
             (td+ "im" im-cell)

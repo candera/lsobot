@@ -385,21 +385,6 @@ span.assessment-symbol {
     display: none;
 }
 
-/* .aoa.axis-label.major { */
-/*     fill: red; */
-/*     stroke: red; */
-/* } */
-
-/* .axis-label.unacceptable { */
-/*     stroke: red; */
-/*     fill: red; */
-/* } */
-
-/* .axis-label.ideal { */
-/*     stroke: white; */
-/*     fill: white; */
-/* } */
-
 #pass-selection-section label {
     margin-right: 3px;
 }
@@ -414,31 +399,24 @@ span.assessment-symbol {
     stroke-dasharray: 50 30;
 }
 
-/* #aoa, #plan, #elevation { */
-/*     transform-origin: 0% 0%; */
-/*     transform: rotate(90deg); */
-/*     display: block; */
-/*     width: 80%; */
-/*     position: fixed; */
-/*     left: 27%; */
-/* } */
+.grade-score {
+    margin-left: 3px;
+    font-size: 80%
+}
 
-/* #plan { */
-/*     left: 99%; */
-/* } */
+.assessment-cell.remarks {
+    text-align: start;
+}
 
-/* #elevation { */
-/*     left: 60%; */
-/* } */
+.assessment-cell .not-implemented {
+    color: lightgrey;
+    font-size: 80%;
+}
 
-/* .glideslope-data.low { */
-/*     fill: red; */
-/* } */
+.assessment-cell .not-implemented::after {
+    content: "-";
+}
 
-/* .glideslope-data.high { */
-/*     fill:lime; */
-/* } */
-
-/* .glideslope-data.good { */
-/*     fill: yellow; */
-/* } */
+.assessment-cell .perfect {
+    text-decoration: underline;
+}

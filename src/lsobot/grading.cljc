@@ -12,6 +12,28 @@
   #?(:cljs (:require-macros [lsobot.spec :as s]
                             [lsobot.spec-gen :as sgen])))
 
+(def grades
+  {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
+                        :score 5}
+   ::ok                {:description "A pass with only very minor deviations. Pretty much the best that you can do – above average, in other words. You don’t count on Ok."
+                        :score 4}
+   ::fair              {:description "A pass with one or more safe deviations and appropriate corrections. Fleet average."
+                        :score 3}
+   ::bolter            {:description "A safe pass where the hook is down and the aircraft does not stop. Counts against pilot/squadron/wing ‘boarding rate’."
+                        :score 2.5}
+   ::none              {:description "A pass with gross deviations or inappropriate corrections. It’s ugly, but safely ugly. Nevertheless, you don’t want to make a habit of being safely ugly. Failure to respond to LSO calls will often result in this grade."
+                        :score 2}
+   ::waveoff-pattern   {:description "Usually issued for gross deviations in the approach turn."
+                        :score 2}
+   ::own-waveoff       {:description "Own waveoff, executed when clearance to land via Roger ball or cut lights are received"
+                        :score 2}
+   ::waveoff           {:description "A pass defined as ‘unsettled dynamics, potentially unsafe’, with deviations from centerline, glideslope and/or angle of attack that are unsafe and need to be aborted." :score 1}
+   ::cut-pass          {:description "An unsafe pass with unacceptable deviations, typically after a wave off is possible. The worst grade. You definitely don’t want to get many of those. They’re career enders."
+                        :score 0}
+   ::foul-deck-waveoff {:description "A pass that was aborted due to the landing area being ‘fouled’. No points are assigned, and the pass is not counted toward the pilot’s landing grade average."}
+   ::incomplete        {:description "Insufficient data to determine the status of the pass."}})
+
+
 ;;; Specs
 (s/def ::slope float?)
 (s/def ::distance float?)
@@ -45,8 +67,18 @@
                             ::lineup-deviations]))
 
 (s/def ::start comments)
+(s/def ::mid comments)
+(s/def ::in-close comments)
+(s/def ::at-ramp comments)
+(s/def ::grade (set (keys grades)))
 
-(def assessment (s/keys :req [::result ::frames ::start]))
+(def assessment (s/keys :req [::result
+                              ::frames
+                              ::start
+                              ::mid
+                              ::in-close
+                              ::at-ramp
+                              ::grade]))
 
 ;; Landing coordinates:
 ;; x indicates cross-track error. Negative left.
@@ -146,27 +178,6 @@
                          :at-ramp      {}
                          ;; In the wires from touchdown until stopped
                          :in-the-wires {}}})
-
-(def grades
-  {::ok+               {:description "A perfect pass. Reserved for outstanding landings with significant complicating factors (an engine out, for example). Naval aviators often have hundreds of carrier landings without ever receiving this grade."
-                        :score 5}
-   ::ok                {:description "A pass with only very minor deviations. Pretty much the best that you can do – above average, in other words. You don’t count on Ok."
-                        :score 4}
-   ::fair              {:description "A pass with one or more safe deviations and appropriate corrections. Fleet average."
-                        :score 3}
-   ::bolter            {:description "A safe pass where the hook is down and the aircraft does not stop. Counts against pilot/squadron/wing ‘boarding rate’."
-                        :score 2.5}
-   ::none              {:description "A pass with gross deviations or inappropriate corrections. It’s ugly, but safely ugly. Nevertheless, you don’t want to make a habit of being safely ugly. Failure to respond to LSO calls will often result in this grade."
-                        :score 2}
-   ::waveoff-pattern   {:description "Usually issued for gross deviations in the approach turn."
-                        :score 2}
-   ::own-waveoff       {:description "Own waveoff, executed when clearance to land via Roger ball or cut lights are received"
-                        :score 2}
-   ::waveoff           {:description "A pass defined as ‘unsettled dynamics, potentially unsafe’, with deviations from centerline, glideslope and/or angle of attack that are unsafe and need to be aborted." :score 1}
-   ::cut-pass          {:description "An unsafe pass with unacceptable deviations, typically after a wave off is possible. The worst grade. You definitely don’t want to get many of those. They’re career enders."
-                        :score 0}
-   ::foul-deck-waveoff {:description "A pass that was aborted due to the landing area being ‘fouled’. No points are assigned, and the pass is not counted toward the pilot’s landing grade average."}
-   ::incomplete        {:description "Insufficient data to determine the status of the pass."}})
 
 (defn bearing
   "Returns the bearing between two objects in degrees."
@@ -537,6 +548,28 @@
           distinct-frames
           (drop 4 distinct-frames))))
 
+(defn grade
+  "Given an initial assessment, return a grade."
+  [params assessment]
+  (let [{:keys [::result ::start ::mid ::in-close ::at-ramp ::wire]} assessment
+        degrees (for [phase [start mid in-close at-ramp]
+                      dimension [::aoa-deviations
+                                 ::glideslope-deviations
+                                 ;; NATOPS implies lineup doesn't
+                                 ;; factor into the grade
+                                 ;;::lineup-deviations
+                                 ]
+                      deviation (get phase dimension ::deviations)]
+                  (::degree deviation))]
+    (cond
+      (= result :bolter) ::bolter
+      (= result :waveoff) ::waveoff
+      (= result :ramp-strike) ::cut-pass
+      (not (some #{:unacceptable :major :minor} degrees)) ::ok
+      (not (some #{:unacceptable :major} degrees)) ::fair
+      (not (some #{:unacceptable} degrees)) ::none
+      :else ::cut-pass)))
+
 (defn assess-pass
   "Perform any processing that can only happen once we have the whole
   pass. Returns the assessment."
@@ -548,27 +581,29 @@
                     (->> augmented-frames
                          (filter #(< (::height %) touchdown-height))
                          first
-                         ::downrange))]
-    {::result result
-     ::start (assess-zone {:params params
-                           :frames augmented-frames
-                           :from (-> zones :start :from)
-                           :to (-> params :zones :start :to)})
-     ::mid (assess-zone {:params params
-                         :frames augmented-frames
-                         :from (-> zones :mid :from)
-                         :to (-> zones :mid :to)})
-     ::in-close (assess-zone {:params params
-                              :frames augmented-frames
-                              :from (-> zones :in-close :from)
-                              :to (-> zones :in-close :to)})
-     ::at-ramp (assess-zone {:params params
-                             :frames augmented-frames
-                             :from (-> zones :in-close :to)
-                             :to (or touchdown 0)})
-     ::wire (when (= result :trap)
-              (assess-wire params augmented-frames))
-     ::frames augmented-frames}))
+                         ::downrange))
+        initial     {::result result
+                     ::start (assess-zone {:params params
+                                           :frames augmented-frames
+                                           :from (-> zones :start :from)
+                                           :to (-> params :zones :start :to)})
+                     ::mid (assess-zone {:params params
+                                         :frames augmented-frames
+                                         :from (-> zones :mid :from)
+                                         :to (-> zones :mid :to)})
+                     ::in-close (assess-zone {:params params
+                                              :frames augmented-frames
+                                              :from (-> zones :in-close :from)
+                                              :to (-> zones :in-close :to)})
+                     ::at-ramp (assess-zone {:params params
+                                             :frames augmented-frames
+                                             :from (-> zones :in-close :to)
+                                             :to (or touchdown 0)})
+                     ::wire (when (= result :trap)
+                              (assess-wire params augmented-frames))
+                     ::frames augmented-frames}]
+    (assoc initial
+           ::grade (grade params initial))))
 
 (defn find-passes
   "Returns a seq of seq of pass frames found for the given pilot and
