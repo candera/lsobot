@@ -1,6 +1,5 @@
 html,body {
     height: 100%;
-    /* flex-direction: column; */
 }
 
 body {
@@ -8,13 +7,9 @@ body {
     font-weight: 500;
     background-color: #FDFFD9;
     padding-right: 3px;
-    display: flex;
-    flex-direction: column;
 }
 
 #content {
-    display: flex;
-    flex-direction: column;
 }
 
 #titlebar {
@@ -78,16 +73,7 @@ body {
     color: white
 }
 
-#sidebar {
-    /* float: left; */
-    display: flex;
-    flex-direction: column;
-    min-width: 200px;
-    margin-right: 5px;
-}
-
 #load-button {
-    align-self: flex-start;
 }
 
 #pass-selection-section select {
@@ -100,10 +86,7 @@ body {
 }
 
 #graphs {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    /* overflow: hidden; */
+    width: 100%;
 }
 
 .graph-label {
@@ -261,7 +244,6 @@ span.assessment-symbol {
 }
 
 #assessment {
-    display: flex;
 }
 
 #assessment-props {
