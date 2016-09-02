@@ -34,6 +34,8 @@
 
 ;;; State
 
+(defc show-debug? false)
+
 (defc pass-parameters grading/default-parameters)
 
 (defc acmi-name nil)
@@ -432,7 +434,7 @@ L30 1100")))
   (formula-of
    [pass-parameters selected-pass]
    (let [{:keys [west east high low]} view-bounds
-         [x y z] (:landing-point pass-parameters)]
+         [x y z] (:landing-point (log/spy pass-parameters))]
      (svg/svg
       :attr {"xmlns" "http://www.w3.org/2000/svg"}
       :viewBox (gstring/format "%d %d %d %d"
@@ -811,6 +813,7 @@ L30 1100")))
              97 :a
              98 :b
              99 :c
+             100 :d
              108 :l
              110 :n
              112 :p
@@ -828,6 +831,7 @@ L30 1100")))
 (def key-action {:a #(scroll-to "aoa")
                  :b #(scroll-to "elevation")
                  :c #(scroll-to "plan")
+                 ;; :d #(swap! show-debug? not)
                  :l #(load-acmi nil)
                  :n next-pass
                  :p prev-pass
@@ -875,7 +879,51 @@ L30 1100")))
     elevation)
    (div
     (div :class "graph-label" "Lineup")
-    plan))))
+    plan))
+  ;; Debug support
+  (button
+   :click #(swap! show-debug? not)
+   (cell= (if show-debug?
+            "Hide debug controls"
+            "Show debug controls")))
+  (let [pass-parameters-cell pass-parameters]
+    (formula-of
+     [pass-parameters]
+     (let [temp-parameters (cell pass-parameters)]
+      (fieldset
+       :toggle show-debug?
+       :id "debug-weights"
+       (legend "Assessment Weights")
+       (table
+        (thead
+         (tr
+          (th "Param")
+          (th "Default")
+          (th "Current")
+          (th "Change to")))
+        (tbody
+         (for [[k label] [[:start "Zone Start"]
+                          [:end "Zone End"]
+                          [:ideal "Ideal"]
+                          [:good "Good"]
+                          [:minor "Minor Deviation"]
+                          [:major "Major Deviation"]
+                          [:unacceptable "Unacceptable Deviation"]]
+               :let [path [:weights k]
+                     id (str (gensym))]]
+           (tr
+            (td label)
+            (td (str (get-in grading/default-parameters path)))
+            (td (cell= (get-in temp-parameters path)))
+            (td (input :id id
+                       :type "text"
+                       :value (cell= (get-in temp-parameters path))
+                       :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
+       (button
+        ;; This dosync is a filthy hack, but I had to do it to make things
+        ;; work right.
+        :click #(dosync (reset! pass-parameters-cell @temp-parameters))
+        "Apply")))))))
 
 ;; Keypresses handler was getting registered more than once when the
 ;; code would reload, which is super annoying.
