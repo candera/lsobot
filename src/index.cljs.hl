@@ -835,7 +835,8 @@ L30 1100")))
                  :l #(load-acmi nil)
                  :n next-pass
                  :p prev-pass
-                 :one #(swap! limit-displayed-passes? not)})
+                 ;;:one #(swap! limit-displayed-passes? not)
+                 })
 
 (defn keypress
   [e]
@@ -914,7 +915,7 @@ L30 1100")))
            (tr
             (td label)
             (td (str (get-in grading/default-parameters path)))
-            (td (cell= (get-in temp-parameters path)))
+            (td (cell= (get-in pass-parameters-cell path)))
             (td (input :id id
                        :type "text"
                        :value (cell= (get-in temp-parameters path))

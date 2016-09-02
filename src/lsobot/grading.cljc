@@ -444,6 +444,10 @@
                                     downrange (::downrange frame)
                                     range-proportion (/ (- downrange to) (- from to))
                                     range-weight (+ end (* range-proportion (- start end)))
+                                    ;; _ (log/debug :downrange downrange
+                                    ;;              :from from
+                                    ;;              :to to
+                                    ;;              :range-weight range-weight)
                                     class-weight (get weights degree)
                                     score (* range-weight
                                              class-weight)]
