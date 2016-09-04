@@ -417,10 +417,83 @@ span.assessment-symbol {
     overflow: hidden;
 }
 
-svg {
+svg.graph {
     position: absolute;
     height: 100%;
     width: 100%;
     left: 0;
     top: 0;
+}
+
+.help {
+    display: inline-block;
+    position: relative;
+}
+
+.help .img {
+    width: 18px;
+    height: 18px;
+    color: white;
+    background: darkblue;
+    border-radius: 9px;
+    text-align: center;
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 80%;
+}
+
+.help .content {
+    position: absolute;
+    top: -3px;
+    left: 28px;
+    border: 1px solid black;
+    background: #f9f29a;
+    width: auto;
+    min-width: 425px;
+    z-index: 100;
+    display: none;
+    text-align: left;
+    padding: 10px 15px 0 4px;
+    color: black;
+    opacity: 0.96;
+}
+
+.help .hidden {
+    display: none;
+}
+
+.help .content p {
+    margin-top: 0;
+    /* margin-bottom: 0; */
+}
+
+.help .content dt {
+    font-weight: bold;
+}
+
+svg.help-circle {
+    width: 15px;
+    height: 15px;
+    margin-right: 4px;
+    background: #0d0d27;
+}
+
+.close-help {
+    position: absolute;
+    color: red;
+    font-size: 150%;
+    border: solid 1px black;
+    right: -1px;
+    top: -1px;
+    padding: 2px;
+    padding-top: 0;
+}
+
+#scoresheet-help {
+    float: left;
+}
+
+#scoresheet-help .content {
+    min-width: 500px;
+
 }

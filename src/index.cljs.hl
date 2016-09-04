@@ -1,5 +1,6 @@
 (page "index.html"
   (:require [clojure.string :as str]
+            [hoplon.svg :as svg]
             [goog.dom :as gdom]
             [goog.events :as gevents]
             [goog.string :as gstring]
@@ -9,8 +10,9 @@
              :refer [<! >! timeout]]
             [lsobot.acmi :as acmi]
             [lsobot.grading :as grading]
+            [lsobot.help :as help]
+            [lsobot.svg-fix :as svg-fix]
             [lsobot.units :as units]
-            [hoplon.svg :as svg]
             [taoensso.timbre :as log
              :refer-macros (log trace debug info warn error fatal report
                                 logf tracef debugf infof warnf errorf fatalf reportf
@@ -19,6 +21,8 @@
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]
    [lsobot.macros :refer [formula-of defformula]]))
+
+(svg-fix/fix-svg!)
 
 ;;; Utilities
 
@@ -132,19 +136,42 @@
                               (reset! limit-displayed-passes? false)))))))
             (.readAsText reader file)))))))
 
+;;; Help
+
+(let [help-states (cell {})]
+  (defelem help [{:keys []} contents]
+    (let [id (str (gensym))
+          content-id (str "content-" id)
+          img-id (str "img-" id)]
+      (div
+       :class "help"
+       (div
+        :id content-id
+        :fade-toggle (cell= (get help-states id))
+        :class "content"
+        :click #(swap! help-states assoc id false)
+        (div :class "close-help" "X")
+        contents)
+       (div
+        :id img-id
+        :class "img"
+        :click #(swap! help-states
+                       (fn [hs]
+                         (merge (zipmap (keys hs) (repeat false))
+                                {id (not (get hs id))})))
+        ;; TODO; Don't make the help go away if the place the mouse
+        ;; has gone is the help content.
+        ;; :mouseout (fn []
+        ;;             (go (<! (async/timeout 1000))
+        ;;                 (swap! help-states assoc id false)))
+        "?")))))
+
+(defn help-for
+  [help-path]
+  (help (or (get-in help/content help-path)
+            (p "Help content has not yet been written for this feature."))))
+
 ;;; UI
-
-(defmethod do! :viewBox
-  [elem _ value]
-  (if (= false value)
-    (.removeAttribute elem "viewBox")
-    (.setAttribute elem "viewBox" value)))
-
-(defmethod do! :preserveAspectRatio
-  [elem _ value]
-  (if (= false value)
-    (.removeAttribute elem "preserveAspectRatio")
-    (.setAttribute elem "preserveAspectRatio" value)))
 
 (def view-bounds
   {:west -1100
@@ -454,7 +481,8 @@ L30 1100")))
                                  (* 100.0)
                                  (str "%"))}
       (svg/svg
-       :attr {"xmlns" "http://www.w3.org/2000/svg"}
+       :attr {:class "graph"
+              "xmlns" "http://www.w3.org/2000/svg"}
        :viewBox (gstring/format "%d %d %d %d"
                                 west
                                 (- high z)
@@ -545,7 +573,8 @@ L30 1100")))
                                 (* 100.0 )
                                 (str "%"))}
      (svg/svg
-      :attr {"xmlns" "http://www.w3.org/2000/svg"}
+      :attr {:class "graph"
+             "xmlns" "http://www.w3.org/2000/svg"}
       :id "plan"
       :viewBox (gstring/format "%d %d %d %d"
                                west
@@ -814,15 +843,16 @@ L30 1100")))
       :class "toggle-button"
       :colspan 4
       (let [limit-cell limit-displayed-passes?]
-        (formula-of
-         [passes selected-pass limit-displayed-passes?]
-         (button
-          :id "limit-pass-display"
-          :toggle (and passes selected-pass (< 1 (count passes)))
-          :click #(reset! limit-cell (not limit-displayed-passes?))
-          (if limit-displayed-passes?
-            "Show all passes"
-            "Only show selected pass")))))
+        [(div :id "scoresheet-help" (help-for [:scoresheet]))
+         (formula-of
+          [passes selected-pass limit-displayed-passes?]
+          (button
+           :id "limit-pass-display"
+           :toggle (and passes selected-pass (< 1 (count passes)))
+           :click #(reset! limit-cell (not limit-displayed-passes?))
+           (if limit-displayed-passes?
+             "Show all passes"
+             "Only show selected pass")))]))
      (th :class "gs-speed-errors" :colspan 7 "Glideslope and Speed Errors")
      (th :class "control-errors" :colspan 2 "Control Errors")
      (th :class "lineup-and-wing" :rowspan 2 "Lineup " (br) "& Wing")
@@ -955,12 +985,16 @@ L30 1100")))
    (div
     (div
      :class "graph-label-wrapper"
-     (div :class "graph-label" "Glideslope"))
+     (div :class "graph-label"
+          "Glideslope and AoA")
+     (help-for [:glideslope]))
     elevation)
    (div
     (div
      :class "graph-label-wrapper"
-     (div :class "graph-label" "Lineup"))
+     (div :class "graph-label"
+          "Lineup")
+     (help-for [:lineup]))
     plan))
   ;; Debug support
   (button
