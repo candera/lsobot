@@ -374,7 +374,7 @@ L30 1100")))
       x1 (units/deg->rad 4)
       x2 (units/deg->rad 10)]
   (defn exaggerate-angle
-    "Make small angles bigxbger."
+    "Make small angles bigger."
     ([rad]
      (cond
        (< (Math/abs rad) x1) (* angular-exaggeration rad)

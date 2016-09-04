@@ -37,7 +37,7 @@
   {:scoresheet
    [(p "Displays the scores. Abbreviations:")
     (dl
-     (dt :class "perfect" "OK")
+     (dt :css {:text-decoration "underline"} "OK")
      (dd (-> grading/grades ::grading/ok+ :description))
      (dt "OK")
      (dd (-> grading/grades ::grading/ok :description))
