@@ -457,22 +457,23 @@
                                         score)))
                             {}))
         [[degree direction] score] (apply max-key val scores)]
+    (log/debug "assess-deviation" :from from :to to :scores scores)
     [{::degree degree
       ::direction direction
-      ::score score}]))
+      ::scores scores}]))
 
 (defn assess-zone
   "Returns assessment of the given zone"
-  [{:keys [params zone frames from to]}]
+  [{:keys [params frames from to]}]
   (->> (for [[dimension key] [[::aoa-deviations ::aoa]
                               [::glideslope-deviations ::glideslope]
                               [::lineup-deviations ::lineup]]]
-         [dimension (assess-deviation {:params params
-                                       :zone zone
-                                       :path [key ::deviation]
-                                       :frames frames
-                                       :from from
-                                       :to to})])
+         (do (log/info "Assesssing" :dimension key)
+             [dimension (assess-deviation {:params params
+                                           :path [key ::deviation]
+                                           :frames frames
+                                           :from from
+                                           :to to})]))
        (into {})))
 
 (defn assess-wire
@@ -578,6 +579,15 @@
   "Perform any processing that can only happen once we have the whole
   pass. Returns the assessment."
   [params pilot-id frames]
+  (log/info "assessing pass"
+            :pilot (-> frames
+                       last
+                       (acmi/entity pilot-id)
+                       ::acmi/pilot)
+            :start (-> frames
+                       first
+                       ::acmi/t
+                       units/s->dhms))
   (let [augmented-frames (augment-frames params pilot-id frames)
         result (result params augmented-frames)
         {:keys [touchdown-height zones]}  params
@@ -587,23 +597,28 @@
                          first
                          ::downrange))
         initial     {::result result
-                     ::start (assess-zone {:params params
-                                           :frames augmented-frames
-                                           :from (-> zones :start :from)
-                                           :to (-> params :zones :start :to)})
-                     ::mid (assess-zone {:params params
-                                         :frames augmented-frames
-                                         :from (-> zones :mid :from)
-                                         :to (-> zones :mid :to)})
-                     ::in-close (assess-zone {:params params
-                                              :frames augmented-frames
-                                              :from (-> zones :in-close :from)
-                                              :to (-> zones :in-close :to)})
-                     ::at-ramp (assess-zone {:params params
+                     ::start (do (log/info "Asessing start")
+                                 (assess-zone {:params params
+                                               :frames augmented-frames
+                                               :from (-> zones :start :from)
+                                               :to (-> params :zones :start :to)}))
+                     ::mid (do (log/info "Asssessing mid")
+                               (assess-zone {:params params
                                              :frames augmented-frames
-                                             :from (-> zones :in-close :to)
-                                             :to (or touchdown 0)})
+                                             :from (-> zones :mid :from)
+                                             :to (-> zones :mid :to)}))
+                     ::in-close (do (log/info "Assessing in close")
+                                    (assess-zone {:params params
+                                                  :frames augmented-frames
+                                                  :from (-> zones :in-close :from)
+                                                  :to (-> zones :in-close :to)}))
+                     ::at-ramp (do (log/info "Assessing at ramp")
+                                   (assess-zone {:params params
+                                                 :frames augmented-frames
+                                                 :from (-> zones :in-close :to)
+                                                 :to (or touchdown 0)}))
                      ::wire (when (= result :trap)
+                              (log/info "Assessing wire")
                               (assess-wire params augmented-frames))
                      ::frames augmented-frames}]
     (assoc initial
