@@ -111,7 +111,6 @@
                              (async/close! ch))))
     (.click i)
     (go
-      (log/debug "Got here")
       (let [e (<! ch)]
         (when-let [file (aget (.. e -target -files) 0)]
           (let [reader (js/FileReader.)]
@@ -120,10 +119,8 @@
                 (set! #(do
                          (reset! loading? true)
                          (go
-                           (log/debug "Got here, too")
                            ;; Give the loading changes to take
                            (<! (async/timeout 100))
-                           (log/debug "And then got here.")
                            (let [contents (-> % .-target .-result)]
                              (dosync
                               (reset! acmi (acmi/read-acmi contents))
@@ -700,7 +697,17 @@ L30 1100")))
       grading/grades
       (:score "")))
 
-(def aw-cell not-implemented-cell)
+(defn aw-cell
+  [assessment]
+  (for [dimension [::grading/glideslope-deviations
+                   ::grading/lineup-deviations
+                   ::grading/aoa-deviations]
+        deviation (-> assessment ::all-the-way dimension)]
+    (span
+     :class ["assessment-symbol"
+             (or (some-> deviation ::grading/degree name) "")
+             (or (some-> deviation ::grading/direction name) "")]
+     (assessment-mark dimension deviation nil))))
 
 (defn glideslope-and-speed-cell
   [phase assessment]
@@ -752,6 +759,49 @@ L30 1100")))
           :ramp-strike "Ramp strike"
           "")))
 
+(defn consolidate
+  "Looks for ways to consolidate assessments into the 'AW' column."
+  [assessment]
+  (let [phases (if (= :waveoff (::grading/result assessment))
+                 [::grading/start ::grading/mid ::grading/in-close]
+                 [::grading/start ::grading/mid ::grading/in-close ::grading/at-ramp])
+        match? (fn [degree direction deviation]
+                 (= [degree direction]
+                    [(::grading/degree deviation) (::grading/direction deviation)]))
+        common (for [direction [:high :low]
+                     degree [:ideal :good :minor :major :unacceptable]
+                     dimension [::grading/aoa-deviations
+                                ::grading/lineup-deviations
+                                ::grading/glideslope-deviations]
+                     :when (every? (fn [phase]
+                                     (->> assessment
+                                          phase
+                                          dimension
+                                          (some #(match? degree direction %))))
+                                   phases)]
+                 [dimension degree direction])
+        assessment* (->> common
+                         (reduce (fn [assessment [dimension degree direction]]
+                                   (reduce (fn [assessment phase]
+                                             (update-in
+                                              assessment
+                                              [phase dimension]
+                                              (fn [deviations]
+                                                (remove
+                                                 #(match? degree direction %)
+                                                 deviations))))
+                                           assessment
+                                           phases))
+                                 assessment))]
+    (reduce (fn [assessment [dimension degree direction]]
+              (update-in assessment
+                         [::all-the-way dimension]
+                         conj
+                         {::grading/degree degree
+                          ::grading/direction direction}))
+            assessment*
+            common)))
+
 (defn assessment
   "Returns UI for the assessment section"
   [passes selected-pass limit-displayed-passes?]
@@ -801,10 +851,10 @@ L30 1100")))
          (tr (td :class "none-loaded" :colspan 16 "No Passes Detected"))
          (for [pass passes
                :let [{:keys [carrier pilot start assessment]} pass
-                     frames (::grading/frames assessment)
+                     assessment* (consolidate assessment)
                      td+ (fn [class cell-f]
                            (td :class (str class " assessment-cell")
-                               (cell-f assessment)))]]
+                               (cell-f assessment*)))]]
            (tr
             :css {:display (if (or (not selected-pass)
                                    (not limit-displayed-passes?)
