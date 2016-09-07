@@ -383,7 +383,8 @@ L30 1100")))
        (< (Math/abs rad) x2) (-> rad
                                  Math/abs
                                  (- x1)
-                                 (/ angular-exaggeration)
+                                 (* (/ (- x2 (* angular-exaggeration x1))
+                                       (- x2 x1)))
                                  (+ (* angular-exaggeration x1))
                                  (* (/ rad (Math/abs rad))))
        :else rad))

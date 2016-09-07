@@ -25,6 +25,15 @@
                      (get "AircraftCarrier"))))
        (map first)))
 
+(defn pilots
+  [file]
+  (into (sorted-map)
+        (for [[id properties] (->> file
+                                   ::acmi/frames
+                                   last
+                                   acmi/entities)
+              :when (::acmi/pilot properties)]
+          [(::acmi/pilot properties) id])))
 
 (defn time-str
   [acmi t]

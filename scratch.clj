@@ -784,3 +784,35 @@
      (/ 1))
 
 ;; 17.34 feet
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Why are there discontinuities in lineup?
+
+(let [acmi (-> "acmi/Flounder Shady Test Passes.txt.acmi" slurp acmi/read-acmi)
+      carrier "c2011f8100000011"
+      pilot "c2011f8100000001"
+      t1 60688.53
+      t2 60688.85
+      f1 (acmi/frame-at acmi t1)
+      f2 (acmi/frame-at acmi t2)
+      c1 (grading/characterize-frame carrier pilot grading/default-parameters f1)
+      c2 (grading/characterize-frame carrier pilot grading/default-parameters f2)
+      [ct1 dr1 h1] (-> c1 :pass-frame ::grading/hook-pos)
+      [ct2 dr2 h2] (-> c2 :pass-frame ::grading/hook-pos)
+      r1 (Math/sqrt (+ (* dr1 dr1) (* ct1 ct1)))
+      r2 (Math/sqrt (+ (* dr2 dr2) (* ct2 ct2)))
+      theta1 (Math/atan2 (Math/abs ct1) (Math/abs dr1))
+      theta2 (Math/atan2 (Math/abs ct2) (Math/abs dr2))
+      ]
+  (pprint [{:t t1
+            :coords [dr1 ct1]
+            :coords* (exaggerate-angle dr1 ct1)
+            :r r1
+            :theta (units/rad->deg theta1)
+            }
+           {:t t2
+            :coords [dr2 ct2]
+            :coords* (exaggerate-angle dr2 ct2)
+            :r r2
+            :theta (units/rad->deg theta2)}]))
