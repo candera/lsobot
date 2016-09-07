@@ -667,3 +667,120 @@
        ::acmi/frames
        (mapcat ::acmi/events)
        pprint))
+
+(let [path "acmi/Carl Vinson 4-Wire.txt.acmi"
+      flounder "2c32d33300000001"
+      sting21 "2c32d33300000009"
+      sting22 "2c32d3330000000a"
+      pilot sting21
+      vinson "2c32d33300000008"
+      file (-> path slurp acmi/read-acmi)]
+  (->> file
+       ::acmi/frames
+       (def w4)))
+
+(let [flounder   "c78a93fb00000001"
+      vinson   "c78a93fb0000000b"
+      f (-> w4
+            last
+            (assoc-in [flounder ::acmi/alt] 22.58))]
+  #_(pprint f)
+  (-> (grading/characterize-frame
+       vinson
+       flounder
+       grading/default-parameters
+       f)
+      :pass-frame
+      (select-keys [::grading/downrange ::grading/crosstrack-error ::grading/height ::grading/hook-pos])))
+
+
+
+
+(let [carrier-id  "284f42c50000000b"    ; Carrier
+      pilot-id "284f42c500000001"]
+  (grading/characterize-frame
+   carrier-id
+   pilot-id
+   grading/default-parameters
+   (last w4))) ; flounder
+
+;;
+
+(def ty (-> "acmi/Tyrant-2016-09-05.txt.acmi"
+            slurp
+            acmi/read-acmi))
+
+;; Altitude at end 22.58 meters. That's 74.08 feet. Which yields the
+;; hook (and therefore the deck) at 67.2 feet.
+
+(let [carrier-id   "3b931e1f00000007"
+      pilot-id   "3b931e1f00000001"
+      ])
+
+(defn data
+  [path pilot]
+  (let [acmi (-> path slurp acmi/read-acmi)
+        frame (-> acmi ::acmi/frames last)
+        pilot-id (->> frame
+                      ::acmi/entities
+                      (filter (fn [[id props]]
+                                (= pilot (::acmi/pilot props))))
+                      first
+                      first)
+        carrier-id (->> frame
+                        ::acmi/entities
+                        (filter (fn [[id props]]
+                                  (-> props
+                                      ::acmi/object-type
+                                      (get "AircraftCarrier"))))
+                        first
+                        first)
+        frame'     (-> (grading/characterize-frame carrier-id
+                                                   pilot-id
+                                                   grading/default-parameters
+                                                   frame)
+                       :pass-frame)
+        frame''     (-> frame'
+                        (assoc ::grading/pilot
+                               (acmi/entity frame pilot-id))
+                        (assoc-in [::grading/pilot ::acmi/pitch] 0))]
+    (-> frame''
+        (assoc ::grading/hook-pos
+               (grading/hook-pos
+                grading/default-parameters
+                frame''))
+        (select-keys [::grading/hook-pos
+                      ::grading/downrange
+                      ::grading/crosstrack-error
+                      ::grading/height]))
+
+    ))
+
+(data "acmi/Tyrant-4-wire.txt.acmi" "Tyrant")
+
+(data "acmi/Carl Vinson 4-Wire.txt.acmi" "Flounder")
+
+;; Descent: 15.8 ft/sec
+;; Advance: 233.8 ft/sec
+;; Height: 1.434 last aloft
+;; Time to contact: 0.09 sec
+;; Advance in that time: 21.042 ft
+;; Downrange at last aloft: -12.6
+;; Hook contact point: -33.642. Four-wire.
+
+;; If we want the contact point to be at -20 feet:
+
+(-> (- 20 12.6)                         ; Horizontal feet to touchdown
+    (/ 233.8)                            ; Seconds to touchdown (0.3165)
+    (* 15.8)                            ; Vertical feet in that time (0.5)
+    (- 1.434)                           ; Last height aloft
+    -
+    (+ 67.22)) ; => 68.15
+
+;; With a glideslope of 3.3 degrees, how far downrange do I go for each foot of height?
+(->> 3.3
+     units/deg->rad
+     Math/tan
+     (/ 1))
+
+;; 17.34 feet

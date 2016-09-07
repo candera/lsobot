@@ -108,7 +108,7 @@
    :recovery-skew       11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda                5      ; Seconds of data to keep after approach ends
-   :landing-point       [-15 -313 74]       ; x,y,z position in carrier
+   :landing-point       [-13.5 -295.2 68.5] ; x,y,z position in carrier
                                         ; coordinates zero where landing
                                         ; should aim. Feet.
    :landing-window      [50 150]  ; width,length of the "window" around the
@@ -308,25 +308,30 @@
                                             (mapv units/ft->m (:landing-point params)))
                                   carrier-loc)
                [window-width window-length] (:landing-window params)
-               _ (when (or (some nil? pilot-loc)
-                           (some nil? landing-loc))
-                   (log/debug "locs"
-                              :t (::acmi/t frame)
-                              :pilot pilot-id
-                              :pilot-loc pilot-loc
-                              :landing-loc landing-loc))
                ;; Now into landing space
                coords       (->> (mapv - pilot-loc landing-loc)
                                  (rotate-z (- carrier-hdg (:recovery-skew params)))
                                  (mapv units/m->ft)
                                  (mapv * [1 -1 1]))
                [crosstrack-error downrange height]   coords
+               ;; The position we care about is the position of the hook
+               pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
+               [hx hy hz] (:hook-offset params)
+               ;; x assumed to be zero
+               hook-delta-y (- (* hy (Math/cos pitch))
+                               (* hz (Math/sin pitch)))
+               hook-delta-z (+ (* hz (Math/cos pitch))
+                               (* hy (Math/sin pitch)))
+               hook-pos     [crosstrack-error
+                             (+ downrange hook-delta-y)
+                             (+ height hook-delta-z)]
+               [_ hook-downrange hook-height] hook-pos
                distance     (Math/sqrt (+ (* crosstrack-error crosstrack-error)
-                                          (* downrange downrange)))
-               s            (units/rad->deg (Math/atan2 height distance))
+                                          (* hook-downrange hook-downrange)))
+               s            (units/rad->deg (Math/atan2 hook-height distance))
                d            distance
                c            (-> (units/rad->deg (Math/asin (/ crosstrack-error distance)))
-                                (+ (if (pos? downrange)
+                                (+ (if (pos? hook-downrange)
                                      0
                                      180)))
                approaching? (and s d c
@@ -342,13 +347,14 @@
                                     ::lineup           (lineup (:lineup params)
                                                                window-width
                                                                crosstrack-error
-                                                               downrange)
+                                                               hook-downrange)
                                     ::glideslope       (glideslope (:glideslope params)
                                                                    window-length
-                                                                   height
+                                                                   hook-height
                                                                    distance
-                                                                   downrange)
+                                                                   hook-downrange)
                                     ::height           height
+                                    ::hook-pos         hook-pos
                                     ::slope            s
                                     ::distance         d
                                     ::course-deviation c})]
@@ -481,20 +487,21 @@
   [params frames]
   (let [{:keys [wire-interval hook-offset touchdown-height]}  params
         aloft (->> frames
-                   (filterv #(-> %
-                                 ::hook-pos
-                                 (nth 2)
-                                 pos?)))
+                   (take-while (fn [frame]
+                                 (let [[_ _ height] (::hook-pos frame)]
+                                   ;; Blah: magic
+                                   (< 1 height))))
+                   (into []))
         last-aloft (last aloft)
         [_ hook-downrange hook-height] (::hook-pos last-aloft)
         hook-contact (+ hook-downrange
-                        (/ (::height last-aloft)
+                        (/ hook-height
                            (Math/tan (units/deg->rad (::path-a last-aloft)))))]
     (let [penultimate (->> aloft butlast last)
           last-aloft penultimate
           [_ hook-downrange hook-height] (::hook-pos last-aloft)
           hook-contact (+ hook-downrange
-                          (/ (::height last-aloft)
+                          (/ hook-height
                              (Math/tan (units/deg->rad (::path-a last-aloft)))))]
       (log/debug "assess-wire penultimate"
                  :t (::acmi/t last-aloft)
@@ -502,6 +509,7 @@
                  :hook-downrange hook-downrange
                  :hook-height hook-height
                  :hook-contact hook-contact
+                 :pitch (-> last-aloft ::pilot ::acmi/pitch)
                  :path-a (::path-a last-aloft)))
     (log/debug "assess-wire last"
                :t (::acmi/t last-aloft)
@@ -509,12 +517,30 @@
                :hook-downrange hook-downrange
                :hook-height hook-height
                :hook-contact hook-contact
+               :pitch (-> last-aloft ::pilot ::acmi/pitch)
                :path-a (::path-a last-aloft))
+    (let [down (->> frames
+                    (drop-while (fn [frame]
+                              (let [[_ _ height] (::hook-pos frame)]
+                                (< 1 height))))
+                    first)
+          [_ hook-downrange hook-height] (::hook-pos down)
+          hook-contact (+ hook-downrange
+                          (/ hook-height
+                             (Math/tan (units/deg->rad (::path-a last-aloft)))))]
+      (log/debug "assess-wire down"
+                 :t (::acmi/t down)
+                 :start (->> frames first ::acmi/t units/s->dhms)
+                 :hook-downrange hook-downrange
+                 :hook-height hook-height
+                 :hook-contact hook-contact
+                 :pitch (-> down ::pilot ::acmi/pitch)
+                 :path-a (::path-a down)))
     (cond
-      (< (* 2.5 wire-interval) hook-contact)
+      (< (* 1.5 wire-interval) hook-contact)
       1
 
-      (< (/ 2 wire-interval) hook-contact)
+      (< (/ wire-interval 2) hook-contact)
       2
 
       (< (- (/ wire-interval 2)) hook-contact)
@@ -541,7 +567,6 @@
                                            (conj frames
                                                  (assoc frame
                                                         ::pos (mapv units/m->ft pos)
-                                                        ::hook-pos (hook-pos params frame)
                                                         ::pilot p))
                                            :last-pos
                                            pos))))

@@ -344,14 +344,16 @@ L30 1100")))
   (svg/g
    :attr {:class "approach-path"}
    (for [frame (-> pass :assessment ::grading/frames)]
-     (let [{:keys [::grading/downrange
-                   ::grading/height
-                   ::grading/glideslope
+     (let [{:keys [::grading/glideslope
+                   ::grading/hook-pos
                    ::acmi/t]} frame
+           [_ downrange height] hook-pos
            {:keys [::grading/value ::grading/deviation]} glideslope]
        [(svg/circle
          :attr {:glideslope value
-                :hook (nth (::grading/hook-pos frame) 2)
+                :hook (::grading/hook-pos frame)
+                :pitch (::grading/pitch frame)
+                :height height
                 :t t
                 :class (deviation-classes "glideslope-data" deviation)}
          :cx downrange
@@ -403,11 +405,11 @@ L30 1100")))
    :attr {:class "approach-path"}
 
    (for [frame (-> pass :assessment ::grading/frames)]
-     (let [{:keys [::grading/downrange
-                   ::grading/lineup
-                   ::grading/crosstrack-error
+     (let [{:keys [::grading/lineup
+                   ::grading/hook-pos
                    ::grading/speed
                    ::acmi/t]} frame
+           [crosstrack-error downrange height] hook-pos
            {:keys [::grading/value ::grading/deviation]} lineup
            [downrange* crosstrack*] (exaggerate-angle downrange crosstrack-error)]
        ;; TODO: Exaggerate the angle to make errors more obvious
