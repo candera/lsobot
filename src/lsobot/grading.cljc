@@ -108,7 +108,7 @@
    :recovery-skew       11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
    :coda                5      ; Seconds of data to keep after approach ends
-   :landing-point       [-13.5 -295.2 68.5] ; x,y,z position in carrier
+   :landing-point       [-13.5 -295.2 67.75] ; x,y,z position in carrier
                                         ; coordinates zero where landing
                                         ; should aim. Feet.
    :landing-window      [50 150]  ; width,length of the "window" around the
@@ -260,24 +260,6 @@
      ::deviation (when (pos? downrange)
                    (classify params value))}))
 
-(defn hook-pos
-  "Returns [crosstrack downrange height] of hook."
-  [params frame]
-  (let [pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
-        [hx hy hz] (:hook-offset params)
-        ;; x assumed to be zero
-        y (- (* hy (Math/cos pitch))
-             (* hz (Math/sin pitch)))
-        z (+ (* hz (Math/cos pitch))
-             (* hy (Math/sin pitch)))]
-    [(-> frame ::crosstrack-error)
-     (-> frame
-         ::downrange
-         (+ y))
-     (-> frame
-         ::height
-         (+ z))]))
-
 (defn characterize-frame
   [carrier-id pilot-id params frame]
   (let [{:keys [::acmi/t ::acmi/entities]} frame
@@ -315,7 +297,7 @@
                                  (mapv * [1 -1 1]))
                [crosstrack-error downrange height]   coords
                ;; The position we care about is the position of the hook
-               pitch (-> frame ::pilot ::acmi/pitch units/deg->rad -)
+               pitch (-> frame (acmi/entity pilot-id) ::acmi/pitch units/deg->rad -)
                [hx hy hz] (:hook-offset params)
                ;; x assumed to be zero
                hook-delta-y (- (* hy (Math/cos pitch))
