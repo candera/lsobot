@@ -58,11 +58,22 @@
 
 (s/def ::aoa (s/keys :req [::value ::deviation]))
 
-(def deviations (s/spec (s/* deviation)))
+(def deviations
+  "Describes a series of deviations that summarize some aspect of an
+  an approach. A perfect approach would have two deviations, one each
+  at the start and the end, whose value would be the ideal for that
+  dimension."
+  (s/spec (s/* deviation)))
 (s/def ::aoa-deviations deviations)
 (s/def ::glideslope-deviations deviations)
 (s/def ::lineup-deviations deviations)
-(def comments (s/keys :req [::aoa-deviations
+(s/def ::aoa-assessment deviation)
+(s/def ::glideslope-assessment deviation)
+(s/def ::lineup-assessment deviation)
+(def comments (s/keys :req [::aoa-assessment
+                            ::glideslope-assessment
+                            ::lineup-assessment
+                            ::aoa-deviations
                             ::glideslope-deviations
                             ::lineup-deviations]))
 
@@ -161,12 +172,12 @@
                          :major {:low  -3
                                  :high 3}}
    :weights             {:start        1
-                         :end          2
+                         :end          1
                          :ideal        1
                          :good         1
                          :minor        2
-                         :major        4
-                         :unacceptable 8}
+                         :major        3
+                         :unacceptable 4}
    :zones               {:start        {:from 4500
                                         :to 3000}
                          :mid          {:from 3000
@@ -398,7 +409,7 @@
                          (filterv #(< deck-uprange
                                       (::downrange %)
                                       deck-downrange)))
-        last-height (->> frames last ::height)
+        [_ _ last-height] (->> frames last ::hook-pos)
         last-downrange (->> frames last ::downrange)
         min-deck-height (when-not (empty? deck-frames)
                           (->> deck-frames
@@ -406,9 +417,9 @@
                                (reduce min)))]
     ;; TODO: refine
     (cond
-      (and (neg? last-height)
-           (pos? last-downrange)
-           (< last-downrange (+ 500 deck-downrange)))
+      (and (neg? (log/spy last-height))
+           (pos? (log/spy last-downrange))
+           (< (log/spy last-downrange) (+ 500 (log/spy deck-downrange))))
       :ramp-strike
 
       (and min-deck-height
@@ -429,16 +440,19 @@
                     (filterv #(< to (::downrange %) from))
                     (reduce (fn [scores frame]
                               (let [{:keys [::degree ::direction]} (get-in frame path)
-                                    downrange (::downrange frame)
-                                    range-proportion (/ (- downrange to) (- from to))
-                                    range-weight (+ end (* range-proportion (- start end)))
+                                    ;; downrange (::downrange frame)
+                                    ;; range-proportion (/ (- downrange to) (- from to))
+                                    ;; range-weight (or (+ end (* range-proportion (- start end)))
+                                    ;;                  0)
                                     ;; _ (log/debug :downrange downrange
                                     ;;              :from from
                                     ;;              :to to
                                     ;;              :range-weight range-weight)
-                                    class-weight (get weights degree)
-                                    score (* range-weight
-                                             class-weight)]
+                                    class-weight (or (get weights degree) 0)
+                                    ;; score (* range-weight
+                                    ;;          class-weight)
+                                    score class-weight
+                                    ]
                                 (update scores
                                         [degree direction]
                                         (fnil + 0)
@@ -446,16 +460,16 @@
                             {}))
         [[degree direction] score] (apply max-key val scores)]
     (log/debug "assess-deviation" :from from :to to :scores scores)
-    [{::degree degree
-      ::direction direction
-      ::scores scores}]))
+    {::degree degree
+     ::direction direction
+     ::scores scores}))
 
 (defn assess-zone
   "Returns assessment of the given zone"
   [{:keys [params frames from to]}]
-  (->> (for [[dimension key] [[::aoa-deviations ::aoa]
-                              [::glideslope-deviations ::glideslope]
-                              [::lineup-deviations ::lineup]]]
+  (->> (for [[dimension key] [[::aoa-assessment ::aoa]
+                              [::glideslope-assessment ::glideslope]
+                              [::lineup-assessment ::lineup]]]
          (do (log/info "Assesssing" :dimension key)
              [dimension (assess-deviation {:params params
                                            :path [key ::deviation]
@@ -560,27 +574,63 @@
           distinct-frames
           (drop 4 distinct-frames))))
 
+(defn low-and-slow-at-ramp?
+  [assessment]
+  (and (-> assessment ::at-ramp ::aoa-assessment log/spy ::degree #{:unacceptable :major})
+       (-> assessment ::at-ramp ::aoa-assessment ::direction (= :high))
+       (-> assessment ::at-ramp ::glideslope-assessment log/spy ::degree #{:unacceptable :major})
+       (-> assessment ::at-ramp ::glideslope-assessment ::direction (= :low))))
+
+(defn grade-trap
+  [params assessment]
+  (let [{:keys [::result ::start ::mid ::in-close ::at-ramp ::wire]} assessment
+        deviation-score (fn [dimension]
+                          (->> (for [phase [start mid in-close at-ramp]]
+                                 (get-in phase [dimension ::degree]))
+                               (map {nil           0
+                                     :ideal        0
+                                     :good         0
+                                     :minor        1
+                                     :major        2
+                                     :unacceptable 4})
+                               (reduce +)))
+        aoa-score (deviation-score ::aoa-assessment)
+        lineup-score (deviation-score ::lineup-assessment)
+        glideslope-score (deviation-score ::glideslope-assessment)
+        exactly (fn [_ n] n)
+        overall (cond-> 5
+                  (low-and-slow-at-ramp? assessment) (exactly 0)
+                  (<= 20 aoa-score) (- 1)
+                  (<= 10 aoa-score) (- 1)
+                  (< 0 aoa-score) (- 0.1)
+                  (<= 8 glideslope-score) (- 1)
+                  (<= 4 glideslope-score) (- 1)
+                  (< 0 glideslope-score) (- 0.1)
+                  (<= 8 lineup-score) (- 1)
+                  (<= 4 lineup-score) (- 1)
+                  (< 0 lineup-score) (- 0.1))]
+    (log/debug "scoring"
+               :overall overall
+               :aoa aoa-score
+               :lineup lineup-score
+               :glideslope glideslope-score)
+    (cond
+      (= 5 overall) ::ok+
+      (<= 4 overall) ::ok
+      (<= 3 overall) ::fair
+      (<= 2 overall) ::none
+      :else ::cut-pass)))
+
 (defn grade
   "Given an initial assessment, return a grade."
   [params assessment]
-  (let [{:keys [::result ::start ::mid ::in-close ::at-ramp ::wire]} assessment
-        degrees (for [phase [start mid in-close at-ramp]
-                      dimension [::aoa-deviations
-                                 ::glideslope-deviations
-                                 ;; NATOPS implies lineup doesn't
-                                 ;; factor into the grade
-                                 ;;::lineup-deviations
-                                 ]
-                      deviation (get phase dimension ::deviations)]
-                  (::degree deviation))]
-    (cond
-      (= result :bolter) ::bolter
-      (= result :waveoff) ::waveoff
-      (= result :ramp-strike) ::cut-pass
-      (not (some #{:unacceptable :major :minor} degrees)) ::ok
-      (not (some #{:unacceptable :major} degrees)) ::fair
-      (not (some #{:unacceptable} degrees)) ::none
-      :else ::cut-pass)))
+  ;; TODO: update grading
+  (let [result (::result assessment)]
+   (cond
+     (= result :bolter) ::bolter
+     (= result :waveoff) ::waveoff
+     (= result :ramp-strike) ::cut-pass
+     (= result :trap) (grade-trap params assessment))))
 
 (defn assess-pass
   "Perform any processing that can only happen once we have the whole

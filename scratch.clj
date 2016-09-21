@@ -816,3 +816,18 @@
             :coords* (exaggerate-angle dr2 ct2)
             :r r2
             :theta (units/rad->deg theta2)}]))
+
+(let [acmi (-> "acmi/Flounder Shady Test Passes.txt.acmi" slurp acmi/read-acmi)
+      carrier "c2011f8100000011"
+      pilot "c2011f8100000001"
+      pass-frames (-> (grading/find-passes
+                       acmi
+                       carrier
+                       pilot
+                       grading/default-parameters)
+                      (nth 1))]
+  (-> (grading/assess-pass grading/default-parameters pilot
+                           pass-frames)
+      (dissoc ::acmi/entities)
+      (dissoc ::grading/frames)
+      pprint))

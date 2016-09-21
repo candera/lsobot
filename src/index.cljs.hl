@@ -669,11 +669,11 @@ L30 1100")))
    :bolter "Bolter"})
 
 (def symbol-mapping
-  {::grading/aoa-deviations        {:low  "F"
+  {::grading/aoa-assessment        {:low  "F"
                                     :high "S"}
-   ::grading/glideslope-deviations {:low  "LO"
+   ::grading/glideslope-assessment {:low  "LO"
                                     :high "H"}
-   ::grading/lineup-deviations     {:low  "LUL"
+   ::grading/lineup-assessment     {:low  "LUL"
                                     :high "LUR"}})
 
 (def phase-symbol
@@ -713,14 +713,15 @@ L30 1100")))
 
 (defn grade-cell
   [assessment]
-  (case (-> assessment ::grading/grade)
+  (case (log/spy (-> assessment ::grading/grade))
     ::grading/bolter "B"
     ::grading/waveoff "WO"
     ::grading/ok+ (span :class "perfect" "OK")
     ::grading/ok "OK"
     ::grading/fair "(OK)"
     ::grading/none "-"
-    ::grading/cut-pass "C"))
+    ::grading/cut-pass "C"
+    ""))
 
 (defn score-cell
   [assessment]
@@ -731,9 +732,9 @@ L30 1100")))
 
 (defn aw-cell
   [assessment]
-  (for [dimension [::grading/glideslope-deviations
-                   ::grading/lineup-deviations
-                   ::grading/aoa-deviations]
+  (for [dimension [::grading/glideslope-assessment
+                   ::grading/lineup-assessment
+                   ::grading/aoa-assessment]
         deviation (-> assessment ::all-the-way dimension)]
     (span
      :class ["assessment-symbol"
@@ -743,10 +744,10 @@ L30 1100")))
 
 (defn glideslope-and-speed-cell
   [phase assessment]
-  (for [dimension [::grading/glideslope-deviations
-                   ::grading/aoa-deviations]
-        deviation (get-in assessment [phase dimension])]
-    (assessment-symbol dimension deviation)))
+  (for [dimension [::grading/glideslope-assessment
+                   ::grading/aoa-assessment]]
+    (let [deviation (get-in assessment [phase dimension])]
+     (assessment-symbol dimension deviation))))
 
 (defn x-cell
   [assessment]
@@ -771,9 +772,9 @@ L30 1100")))
   [assessment]
   (for [phase (into [::grading/start ::grading/mid ::grading/in-close]
                     (when (#{:trap :bolter} (::grading/result assessment))
-                      [::grading/at-ramp]))
-        deviation (get-in assessment [phase ::grading/lineup-deviations])]
-    (assessment-symbol ::grading/lineup-deviations deviation phase)))
+                      [::grading/at-ramp]))]
+    (let [deviation (get-in assessment [phase ::grading/lineup-assessment])]
+      (assessment-symbol ::grading/lineup-assessment deviation phase))))
 
 (defn wire-cell
   [assessment]
@@ -802,26 +803,24 @@ L30 1100")))
                     [(::grading/degree deviation) (::grading/direction deviation)]))
         common (for [direction [:high :low]
                      degree [:ideal :good :minor :major :unacceptable]
-                     dimension [::grading/aoa-deviations
-                                ::grading/lineup-deviations
-                                ::grading/glideslope-deviations]
+                     dimension [::grading/aoa-assessment
+                                ::grading/lineup-assessment
+                                ::grading/glideslope-assessment]
                      :when (every? (fn [phase]
                                      (->> assessment
                                           phase
                                           dimension
-                                          (some #(match? degree direction %))))
+                                          (match? degree direction)))
                                    phases)]
                  [dimension degree direction])
         assessment* (->> common
                          (reduce (fn [assessment [dimension degree direction]]
                                    (reduce (fn [assessment phase]
-                                             (update-in
+                                             (update
                                               assessment
-                                              [phase dimension]
-                                              (fn [deviations]
-                                                (remove
-                                                 #(match? degree direction %)
-                                                 deviations))))
+                                              phase
+                                              dissoc
+                                              dimension))
                                            assessment
                                            phases))
                                  assessment))]
@@ -885,6 +884,9 @@ L30 1100")))
          (for [pass passes
                :let [{:keys [carrier pilot start assessment]} pass
                      assessment* (consolidate assessment)
+                     _ (log/debug "grade"
+                                  :consolidated (::grading/grade assessment*)
+                                  :normal (::grading/grade assessment))
                      td+ (fn [class cell-f]
                            (td :class (str class " assessment-cell")
                                (cell-f assessment*)))]]
@@ -1049,6 +1051,8 @@ L30 1100")))
 (let [body (gdom/getElement "body")]
   (gevents/removeAll body EventType.KEYPRESS)
   (gevents/listen body EventType.KEYPRESS keypress))
+
+(log/merge-config! {:ns-blacklist ["hoplon.app-pages._index_DOT_html"]})
 
 (comment
   ;; This draw the table of passes. Might use it again
