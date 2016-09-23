@@ -316,50 +316,59 @@
         :ret file)
 
 (defn read-acmi
-  [contents]
-  (let [lines (drop 2 (str/split contents #?(:cljs "\n"
-                                             :clj #"\n")))]  ; Ignore the header
-    (log :lines (count lines))
-    (loop [[line & more-lines] lines
-           entities            {}
-           events              []
-           t                   0.0
-           frames              []]
-      (log :t t :frames (count frames))
-      (if-not line
-        {::frames (conj frames {::t t
-                                ::events   events
-                                ::entities entities})}
-        (let [[type line-info] (parse-line line)]
-          (log :line line :line-info (pr-str line-info))
-          (case type
-            :comment (recur more-lines
-                            entities
-                            []
-                            t
-                            frames)
-            :timestamp (recur more-lines
-                              entities
-                              []
-                              line-info
-                              (conj frames {::t t
-                                            ::events events
-                                            ::entities entities}))
-            :entity-info (recur more-lines
-                                (merge-with merge entities line-info)
-                                events
-                                t
-                                frames)
-            :event (recur more-lines
-                          entities
-                          (conj events line-info)
-                          t
-                          frames)
-            :deletion (recur more-lines
-                             (assoc-in entities [line-info ::removed?] true)
-                             events
+  ([contents] (read-acmi contents (constantly true)))
+  ([contents entity-pred]
+   (let [lines (drop 2 (str/split contents #?(:cljs "\n"
+                                              :clj #"\n")))]  ; Ignore the header
+     (log :lines (count lines))
+     (loop [[line & more-lines] lines
+            entities            {}
+            events              []
+            t                   0.0
+            frames              []]
+       (log :t t :frames (count frames))
+       (if-not line
+         {::frames (conj frames {::t t
+                                 ::events   events
+                                 ::entities entities})}
+         (let [[type line-info] (parse-line line)]
+           (log :line line :line-info (pr-str line-info))
+           (case type
+             :comment (recur more-lines
+                             entities
+                             []
                              t
-                             frames)))))))
+                             frames)
+             :timestamp (recur more-lines
+                               entities
+                               []
+                               line-info
+                               (conj frames {::t t
+                                             ::events events
+                                             ::entities entities}))
+             :entity-info (recur more-lines
+                                 (let [id (-> line-info keys first)
+                                       props (-> line-info vals first)]
+                                   (if (or (entity-pred props)
+                                           (-> entities (get id) entity-pred))
+                                     (merge-with merge entities line-info)
+                                     entities))
+                                 events
+                                 t
+                                 frames)
+             :event (recur more-lines
+                           entities
+                           (conj events line-info)
+                           t
+                           frames)
+             :deletion (recur more-lines
+                              (let [id line-info]
+                                (if (contains? entities id)
+                                  (assoc-in entities [line-info ::removed?] true)
+                                  entities))
+                              events
+                              t
+                              frames))))))))
 
 
 (s/fdef frame-at

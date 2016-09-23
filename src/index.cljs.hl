@@ -127,7 +127,11 @@
                            (<! (async/timeout 100))
                            (let [contents (-> % .-target .-result)]
                              (dosync
-                              (reset! acmi (acmi/read-acmi contents))
+                              (reset! acmi (acmi/read-acmi
+                                            contents
+                                            (fn [e]
+                                              (or (-> e ::acmi/pilot)
+                                                  (-> e ::acmi/object-type (get "AircraftCarrier"))))))
                               (reset! acmi-name (.-name file))
                               (reset! selected-pass
                                       (when (= 1 (count @passes))

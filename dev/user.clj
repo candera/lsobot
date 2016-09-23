@@ -11,7 +11,10 @@
             [clojure.pprint :refer [pprint]]
             [taoensso.timbre :as log]))
 
-(def a8 (-> "acmi/TAPE0008.txt.acmi" slurp acmi/read-acmi))
+(def a8 (-> "acmi/TAPE0008.txt.acmi"
+            slurp
+            (acmi/read-acmi #(or (-> % ::acmi/object-type (get "AircraftCarrier"))
+                                 (-> % ::acmi/pilot)))))
 
 (defn carriers
   [file]
