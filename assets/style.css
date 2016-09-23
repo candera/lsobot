@@ -33,6 +33,7 @@ body {
 
 #byline a {
     padding-left: 5px;
+    padding-right: 5px;
 }
 
 #byline a:link {
@@ -496,4 +497,39 @@ svg.help-circle {
 #scoresheet-help .content {
     min-width: 500px;
 
+}
+
+/* Credits */
+
+.featherlight .featherlight-content {
+    background: #FDFFD9;
+    font-size: 125%;
+    max-width: 80%;
+    padding: 0;
+}
+
+#credits h1 {
+    background: black;
+    color: white;
+    padding-left: 20px;
+}
+
+#credits-body {
+    padding: 0 20px 0 20px;
+}
+
+#credits table {
+    border-width: 0;
+}
+
+#credits table .person {
+    border-width: 0;
+    font-size: 120%;
+    font-variant: small-caps;
+    padding-right: 30px;
+}
+
+#credits .squadron-emblem {
+    float: right;
+    height: 120px;
 }

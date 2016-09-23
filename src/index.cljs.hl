@@ -173,6 +173,12 @@
 
 ;;; UI
 
+(def urls
+  {:tyrant "http://firstfighterwing.com/VFW/member.php?893-Tyrant"
+   :shady "http://firstfighterwing.com/VFW/member.php?484-Shady"
+   :flounder "http://firstfighterwing.com/VFW/member.php?217-Flounder"
+   :drillin "http://firstfighterwing.com/VFW/member.php?133-Drillin"})
+
 (def view-bounds
   {:west -1100
    :east 7000
@@ -648,9 +654,13 @@ L30 1100")))
                   "LSOBot")
             (span :id "byline"
                   "by"
-                  (a :href "http://firstfighterwing.com/VFW/member.php?893-Tyrant"
+                  (a :href (urls :tyrant)
                      :target "_blank"
-                     "Tyrant"))
+                     "Tyrant")
+                  "and"
+                  (a :href "#"
+                     :data-featherlight "#credits"
+                     "Team LSOBot"))
             (span :id "helpstring"
                   "Help? Bug? Feature request? Click"
                   (a :href "help.html"
@@ -956,17 +966,44 @@ L30 1100")))
   (when-let [action (some-> e .-keyCode keymap key-action)]
     (action)))
 
+(def credits
+  "The credits lightbox"
+  (div
+   :id "credits-wrapper"
+   :css {:display "none"}
+   (div
+    :class ".lightbox"
+    :id "credits"
+    (h1 "Credits")
+    (div
+     :id "credits-body"
+     (img :class "squadron-emblem" :src "images/401st.png")
+     (table
+      (tr (td :class "person" (a :href (urls :tyrant) "Tyrant"))
+          (td "Design and implementation"))
+      (tr (td :class "person" (a :href (urls :flounder) "Flounder"))
+          (td "Concept, testing, project management"))
+      (tr (td :class "person" (a :href (urls :shady) "Shady"))
+          (td "Concept, testing, project management"))
+      (tr (td :class "person" (a :href (urls :drillin) "Drillin"))
+          (td "CO, 401st VFS")))
+     (p "Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development.")))))
+
 (html
  (head
   (title "LSOBot")
   (link :rel "Shortcut Icon" :href "images/favicon.ico" :type "image/x-icon")
+  (link :href "//cdn.rawgit.com/noelboss/featherlight/1.5.0/release/featherlight.min.css"
+        :type "text/css"
+        :rel "stylesheet")
   (link :href "style.css" :rel "stylesheet" :title "main" :type "text/css")
   (link :href "https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300"
         :rel "stylesheet"
         :type "text/css")
   (link :href "https://fonts.googleapis.com/css?family=Kalam"
         :rel "stylesheet"
-        :type "text/css"))
+        :type "text/css")
+)
  (body
   :id "body"
   ;;:keypress keypress
@@ -1002,12 +1039,12 @@ L30 1100")))
      (help-for [:lineup]))
     plan))
   ;; Debug support
-  (button
+  #_(button
    :click #(swap! show-debug? not)
    (cell= (if show-debug?
             "Hide debug controls"
             "Show debug controls")))
-  (let [pass-parameters-cell pass-parameters]
+  #_(let [pass-parameters-cell pass-parameters]
     (formula-of
      [pass-parameters]
      (let [temp-parameters (cell pass-parameters)]
@@ -1044,7 +1081,12 @@ L30 1100")))
          ;; This dosync is a filthy hack, but I had to do it to make things
          ;; work right.
          :click #(dosync (reset! pass-parameters-cell @temp-parameters))
-         "Apply")))))))
+         "Apply")))))
+  credits
+  (script :src "//cdn.rawgit.com/noelboss/featherlight/1.5.0/release/featherlight.min.js"
+          :type "text/javascript"
+          :charset "utf-8"))
+ )
 
 ;; Keypresses handler was getting registered more than once when the
 ;; code would reload, which is super annoying.
