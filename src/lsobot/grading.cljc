@@ -451,18 +451,17 @@
                                     class-weight (or (get weights degree) 0)
                                     ;; score (* range-weight
                                     ;;          class-weight)
-                                    score class-weight
-                                    ]
+                                    score class-weight]
                                 (update scores
                                         [degree direction]
                                         (fnil + 0)
                                         score)))
-                            {}))
-        [[degree direction] score] (apply max-key val scores)]
-    (log/debug "assess-deviation" :from from :to to :scores scores)
-    {::degree degree
-     ::direction direction
-     ::scores scores}))
+                            {}))]
+    (when-not (empty? scores)
+      (let [[[degree direction] score] (apply max-key val scores)]
+        {::degree degree
+         ::direction direction
+         ::scores scores}))))
 
 (defn assess-zone
   "Returns assessment of the given zone"
