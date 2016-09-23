@@ -831,3 +831,35 @@
       (dissoc ::acmi/entities)
       (dissoc ::grading/frames)
       pprint))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn sort-passes
+  [unsorted-passes sort-criteria]
+  (sort (comparator (fn [a b]
+                      (loop [[[k dir] & more] sort-criteria]
+                        (if-not k
+                          false
+                          (let [comparison (* (compare (get a k)
+                                                       (get b k))
+                                      (if (= dir :ascending)
+                                        1
+                                        -1))]
+                            (cond
+                              (neg? comparison) true
+                              (pos? comparison) false
+                              :else (recur more)))))))
+        unsorted-passes))
+
+(pprint
+ (sort-passes [{:carrier "a" :pilot "a" :start 1}
+               {:carrier "a" :pilot "a" :start 2}
+               {:carrier "a" :pilot "b" :start 1}
+               {:carrier "a" :pilot "b" :start 2}
+               {:carrier "b" :pilot "a" :start 1}
+               {:carrier "b" :pilot "a" :start 2}
+               {:carrier "b" :pilot "b" :start 1}
+               {:carrier "b" :pilot "b" :start 2}]
+              [[:pilot :descending]
+               [:start :ascending]
+               [:carrier :descending]]))

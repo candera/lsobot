@@ -66,18 +66,39 @@
 
 (defn get-passes
   [acmi params]
-  (->>  (for [[carrier-id pilot-passes] (grading/passes acmi params)
-              [pilot-id assessments] pilot-passes
-              assessment assessments]
-          {:assessment assessment
-           :carrier    (-> acmi ::acmi/frames last (acmi/entity carrier-id) ::acmi/name)
-           :pilot      (-> acmi ::acmi/frames last (acmi/entity pilot-id) ::acmi/pilot)
-           :start      (->> assessment ::grading/frames first ::acmi/t (time-str nil))})
-        (sort-by (juxt :carrier :pilot :start))))
+  (for [[carrier-id pilot-passes] (grading/passes acmi params)
+        [pilot-id assessments] pilot-passes
+        assessment assessments]
+    {:assessment assessment
+     :carrier    (-> acmi ::acmi/frames last (acmi/entity carrier-id) ::acmi/name)
+     :pilot      (-> acmi ::acmi/frames last (acmi/entity pilot-id) ::acmi/pilot)
+     :start      (->> assessment ::grading/frames first ::acmi/t (time-str nil))}))
 
-(defformula passes
+(defc sort-criteria
+  [[:carrier :ascending]
+   [:pilot :ascending]
+   [:start :ascending]])
+
+(defformula unsorted-passes
   [acmi pass-parameters]
   (get-passes acmi pass-parameters))
+
+(defformula passes
+  [unsorted-passes sort-criteria]
+  (sort (comparator (fn [a b]
+                      (loop [[[k dir] & more] sort-criteria]
+                        (if-not k
+                          false
+                          (let [comparison (* (compare (get a k)
+                                                       (get b k))
+                                      (if (= dir :ascending)
+                                        1
+                                        -1))]
+                            (cond
+                              (neg? comparison) true
+                              (pos? comparison) false
+                              :else (recur more)))))))
+        unsorted-passes))
 
 (defn next-pass
   "Moves to the next pass in the list, if there is one."
@@ -847,9 +868,50 @@ L30 1100")))
             assessment*
             common)))
 
+(defn change-sort-criteria
+  "Change the sort criteria, such that a change of order preserves
+  direction, but a second change does not."
+  [criteria column]
+  (log/debug "change-sort-criteria" :criteria criteria :column column)
+  (let [[[primary]] criteria
+        direction (->> criteria
+                       (filter (fn [[col _]]
+                                 (= col column)))
+                       first
+                       second)]
+    (if (= primary column)
+      (into [[primary (if (= :ascending direction)
+                        :descending
+                        :ascending)]]
+            (rest criteria))
+      (into [[column direction]]
+            (->> criteria
+                 (remove (fn [[col _]]
+                           (= col column))))))))
+
+(defn sorted
+  [label criteria column]
+  (div
+   :class "sorted-column"
+   :click #(swap! criteria change-sort-criteria column)
+   label
+   (formula-of
+    [criteria]
+    (let [[[primary]] criteria
+          direction (->> criteria
+                         (filter (fn [[col _]]
+                                   (= col column)))
+                         first
+                         second)]
+      (div :class ["column-sorter"
+                   (if (= primary column)
+                     "primary"
+                     "secondary")
+                   (name direction)])))))
+
 (defn assessment
   "Returns UI for the assessment section"
-  [passes selected-pass limit-displayed-passes?]
+  [passes selected-pass limit-displayed-passes? sort-criteria]
   (table
    :id "assessments"
    (thead
@@ -877,9 +939,9 @@ L30 1100")))
     (tr
      :class "header-2"
      (th :class "select" "")
-     (th :class "carrier"  "Carrier")
-     (th :class "pilot"  "Pilot")
-     (th :class "start" "Time")
+     (th :class "carrier" (sorted "Carrier" sort-criteria :carrier))
+     (th :class "pilot"  (sorted "Pilot" sort-criteria :pilot))
+     (th :class "start" (sorted "Time" sort-criteria :start))
      (th :class "grade" "Grade")
      (th :class "score" "Score")
      (th :class "aw" "AW")
@@ -1025,7 +1087,7 @@ L30 1100")))
    (if-not acmi
      (div "No ACMI file loaded")
      (div "Loaded ACMI: " acmi-name)))
-  (assessment passes selected-pass limit-displayed-passes?)
+  (assessment passes selected-pass limit-displayed-passes? sort-criteria)
   (div
    :id "graphs"
    (div

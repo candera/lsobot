@@ -211,6 +211,28 @@ tr:nth-child(even) {
     padding: 3px;
 }
 
+.sorted-column {
+    cursor: pointer;
+}
+
+.column-sorter {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid black;
+    display: inline-block;
+    margin-left: 3px;
+    vertical-align: middle;
+}
+
+.column-sorter.secondary {
+    border-top: 7px solid #b5b4b4;
+}
+
+.column-sorter.descending {
+    transform: rotate(180deg);
+}
 
 .assessment-symbol.minor::before {
     content: "(";
