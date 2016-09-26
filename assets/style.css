@@ -118,6 +118,19 @@ tr:nth-child(even) {
 #loading-placeholder {
 }
 
+#load-status {
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+#load-button {
+    margin-right: 5px;
+}
+
+#loaded-file-controls {
+}
+
 #spinner {
     height: 20px;
 }

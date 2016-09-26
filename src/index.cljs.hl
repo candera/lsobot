@@ -153,7 +153,8 @@
                                             (fn [e]
                                               (or (-> e ::acmi/pilot)
                                                   (-> e ::acmi/object-type (get "AircraftCarrier"))))))
-                              (reset! acmi-name (.-name file))
+                              (reset! acmi-name (.-name file)))
+                             (dosync
                               (reset! selected-pass
                                       (when (= 1 (count @passes))
                                         (first @passes)))
@@ -1069,24 +1070,28 @@ L30 1100")))
   (link :href "https://fonts.googleapis.com/css?family=Kalam"
         :rel "stylesheet"
         :type "text/css")
-)
+  )
  (body
   :id "body"
   ;;:keypress keypress
   titlebar
-  (if-tpl loading?
-    [(div
+  (formula-of
+   [loading? acmi passes]
+   (if loading?
+     (div
       :id "loading-placeholder"
       (span
        :id "loading-placeholder-message"
        "Loading...")
-      (img :id "spinner" :src "images/spinner.gif"))]
-    (button :id "load-button" :click load-acmi "Load ACMI"))
-  (formula-of
-   [acmi]
-   (if-not acmi
-     (div "No ACMI file loaded")
-     (div "Loaded ACMI: " acmi-name)))
+      (img :id "spinner" :src "images/spinner.gif"))
+     (div
+      :id "loaded-file-controls"
+      (button :id "load-button" :click load-acmi "Load ACMI")
+      (if-not acmi
+        (div :id "load-status" "No ACMI file loaded")
+        (div :id "load-status" "Loaded ACMI: " acmi-name))
+      #_(when-not (-> passes count zero?)
+        (button :id "export-button" :click (fn [_]) "Export as CSV")))))
   (assessment passes selected-pass limit-displayed-passes? sort-criteria)
   (div
    :id "graphs"
@@ -1106,48 +1111,48 @@ L30 1100")))
     plan))
   ;; Debug support
   #_(button
-   :click #(swap! show-debug? not)
-   (cell= (if show-debug?
-            "Hide debug controls"
-            "Show debug controls")))
+     :click #(swap! show-debug? not)
+     (cell= (if show-debug?
+              "Hide debug controls"
+              "Show debug controls")))
   #_(let [pass-parameters-cell pass-parameters]
-    (formula-of
-     [pass-parameters]
-     (let [temp-parameters (cell pass-parameters)]
-       (fieldset
-        :toggle show-debug?
-        :id "debug-weights"
-        (legend "Assessment Weights")
-        (table
-         (thead
-          (tr
-           (th "Param")
-           (th "Default")
-           (th "Current")
-           (th "Change to")))
-         (tbody
-          (for [[k label] [[:start "Zone Start"]
-                           [:end "Zone End"]
-                           [:ideal "Ideal"]
-                           [:good "Good"]
-                           [:minor "Minor Deviation"]
-                           [:major "Major Deviation"]
-                           [:unacceptable "Unacceptable Deviation"]]
-                :let [path [:weights k]
-                      id (str (gensym))]]
+      (formula-of
+       [pass-parameters]
+       (let [temp-parameters (cell pass-parameters)]
+         (fieldset
+          :toggle show-debug?
+          :id "debug-weights"
+          (legend "Assessment Weights")
+          (table
+           (thead
             (tr
-             (td label)
-             (td (str (get-in grading/default-parameters path)))
-             (td (cell= (get-in pass-parameters-cell path)))
-             (td (input :id id
-                        :type "text"
-                        :value (cell= (get-in temp-parameters path))
-                        :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
-        (button
-         ;; This dosync is a filthy hack, but I had to do it to make things
-         ;; work right.
-         :click #(dosync (reset! pass-parameters-cell @temp-parameters))
-         "Apply")))))
+             (th "Param")
+             (th "Default")
+             (th "Current")
+             (th "Change to")))
+           (tbody
+            (for [[k label] [[:start "Zone Start"]
+                             [:end "Zone End"]
+                             [:ideal "Ideal"]
+                             [:good "Good"]
+                             [:minor "Minor Deviation"]
+                             [:major "Major Deviation"]
+                             [:unacceptable "Unacceptable Deviation"]]
+                  :let [path [:weights k]
+                        id (str (gensym))]]
+              (tr
+               (td label)
+               (td (str (get-in grading/default-parameters path)))
+               (td (cell= (get-in pass-parameters-cell path)))
+               (td (input :id id
+                          :type "text"
+                          :value (cell= (get-in temp-parameters path))
+                          :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
+          (button
+           ;; This dosync is a filthy hack, but I had to do it to make things
+           ;; work right.
+           :click #(dosync (reset! pass-parameters-cell @temp-parameters))
+           "Apply")))))
   credits
   (script :src "//cdn.rawgit.com/noelboss/featherlight/1.5.0/release/featherlight.min.js"
           :type "text/javascript"
