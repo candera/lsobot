@@ -162,6 +162,32 @@
                               (reset! limit-displayed-passes? false)))))))
             (.readAsText reader file)))))))
 
+(defn save-data
+  [blob filename]
+  (let [a (gdom/createElement "a")
+        _ (-> (gdom/getDocument) .-body (gdom/appendChild a))
+        _ (gstyle/showElement a false)
+        url (-> js/window .-URL (.createObjectURL blob))]
+    (-> a .-href (set! url))
+    (-> a .-download (set! filename))
+    (.click a)
+    (-> js/window .-URL (.revokeObjectURL url))))
+
+(declare make-csv)
+
+(defn export-csv
+  []
+  (when-not (-> @passes count zero?)
+    (save-data (make-csv @passes)
+               (str (if (-> @acmi-name
+                            .toLowerCase
+                            (.endsWith ".txt.acmi"))
+                      (subs @acmi-name
+                            0
+                            (- (count @acmi-name)
+                               (count ".txt.acmi"))))
+                    ".csv"))))
+
 ;;; Help
 
 (let [help-states (cell {})]
@@ -736,35 +762,32 @@ L30 1100")))
   ([dimension deviation]
    (assessment-symbol dimension deviation nil))
   ([dimension deviation phase]
-   (span
-    :class ["assessment-symbol"
-            (or (some-> deviation ::grading/degree name) "")
-            (or (some-> deviation ::grading/direction name) "")
-            (or (some-> phase name) "")]
-    (assessment-mark dimension deviation phase))))
+   {:class "assessment-symbol"
+    :degree (::grading/degree deviation)
+    :text     (assessment-mark dimension deviation phase)}))
 
 (defn not-implemented-cell
   [assessment]
-  (span :class "not-implemented"))
+  [{:class "not-implemented"}])
 
 (defn grade-cell
   [assessment]
-  (case (log/spy (-> assessment ::grading/grade))
-    ::grading/bolter "B"
-    ::grading/waveoff "WO"
-    ::grading/ok+ (span :class "perfect" "OK")
-    ::grading/ok "OK"
-    ::grading/fair "(OK)"
-    ::grading/none "-"
-    ::grading/cut-pass "C"
-    ""))
+  [{:text (case (log/spy (-> assessment ::grading/grade))
+             ::grading/bolter "B"
+             ::grading/waveoff "WO"
+             ::grading/ok+ (span :class "perfect" "OK")
+             ::grading/ok "OK"
+             ::grading/fair "(OK)"
+             ::grading/none "-"
+             ::grading/cut-pass "C"
+             "")}])
 
 (defn score-cell
   [assessment]
-  (-> assessment
-      ::grading/grade
-      grading/grades
-      (:score "")))
+  [{:text (-> assessment
+              ::grading/grade
+              grading/grades
+              (:score ""))}])
 
 (defn aw-cell
   [assessment]
@@ -772,18 +795,16 @@ L30 1100")))
                    ::grading/lineup-assessment
                    ::grading/aoa-assessment]
         deviation (-> assessment ::all-the-way dimension)]
-    (span
-     :class ["assessment-symbol"
-             (or (some-> deviation ::grading/degree name) "")
-             (or (some-> deviation ::grading/direction name) "")]
-     (assessment-mark dimension deviation nil))))
+    {:class "assessment-symbol"
+     :degree (::grading/degree deviation)
+     :text (assessment-mark dimension deviation nil)}))
 
 (defn glideslope-and-speed-cell
   [phase assessment]
   (for [dimension [::grading/glideslope-assessment
                    ::grading/aoa-assessment]]
     (let [deviation (get-in assessment [phase dimension])]
-     (assessment-symbol dimension deviation))))
+      (assessment-symbol dimension deviation))))
 
 (defn x-cell
   [assessment]
@@ -814,19 +835,19 @@ L30 1100")))
 
 (defn wire-cell
   [assessment]
-  (case (-> assessment ::grading/result)
-    :bolter "B"
-    :waveoff "WO"
-    :trap (-> assessment ::grading/wire)
-    ""))
+  [{:text (case (-> assessment ::grading/result)
+            :bolter "B"
+            :waveoff "WO"
+            :trap (-> assessment ::grading/wire)
+            "")}])
 
 (defn remarks-cell
   [assessment]
-  (span :class "remark"
-        (case (-> assessment ::grading/result)
-          :trap "Trap"
-          :ramp-strike "Ramp strike"
-          "")))
+  [{:class "remark"
+    :text  (case (-> assessment ::grading/result)
+             :trap "Trap"
+             :ramp-strike "Ramp strike"
+             "")}])
 
 (defn consolidate
   "Looks for ways to consolidate assessments into the 'AW' column."
@@ -910,6 +931,13 @@ L30 1100")))
                      "secondary")
                    (name direction)])))))
 
+(defn htmlize-cell
+  [cell]
+  (for [{:keys [text class degree]} cell]
+    (span
+     :class [(or class "") (if degree (name degree) "")]
+     text)))
+
 (defn assessment
   "Returns UI for the assessment section"
   [passes selected-pass limit-displayed-passes? sort-criteria]
@@ -964,39 +992,88 @@ L30 1100")))
                      _ (log/debug "grade"
                                   :consolidated (::grading/grade assessment*)
                                   :normal (::grading/grade assessment))
-                     td+ (fn [class cell-f]
-                           (td :class (str class " assessment-cell")
-                               (cell-f assessment*)))]]
+                     lead-td (fn [class content]
+                               (td :class (str class " assessment-cell")
+                                   content))
+                     data-td (fn [class cell-f]
+                               (td :class (str class " assessment-cell")
+                                   (htmlize-cell (cell-f assessment*))))]]
            (tr
             :css {:display (if (or (not selected-pass)
                                    (not limit-displayed-passes?)
                                    (= selected-pass pass))
                              "table-row"
                              "none")}
-            (td+ "select"
-                 (constantly
-                  (input :type "radio"
-                         :name "pass"
-                         :click #(reset! selected-pass-cell pass)
-                         :checked (= selected-pass pass))))
-            (td+ "carrier"
-                 (constantly carrier))
-            (td+ "pilot"
-                 (constantly pilot))
-            (td+ "start"
-                 (constantly start))
-            (td+ "grade" grade-cell)
-            (td+ "score" score-cell)
-            (td+ "aw" aw-cell)
-            (td+ "x" x-cell)
-            (td+ "im" im-cell)
-            (td+ "ic" ic-cell)
-            (td+ "ar" ar-cell)
-            (td+ "power" power-cell)
-            (td+ "att" att-cell)
-            (td+ "lineup-and-wing" lineup-and-wing-cell)
-            (td+ "wire" wire-cell)
-            (td+ "remarks" remarks-cell)))))))))
+            (lead-td "select"
+                     (input :type "radio"
+                            :name "pass"
+                            :click #(reset! selected-pass-cell pass)
+                            :checked (= selected-pass pass)))
+            (lead-td "carrier" carrier)
+            (lead-td "pilot" pilot)
+            (lead-td "start" start)
+            (data-td "grade" grade-cell)
+            (data-td "score" score-cell)
+            (data-td "aw" aw-cell)
+            (data-td "x" x-cell)
+            (data-td "im" im-cell)
+            (data-td "ic" ic-cell)
+            (data-td "ar" ar-cell)
+            (data-td "power" power-cell)
+            (data-td "att" att-cell)
+            (data-td "lineup-and-wing" lineup-and-wing-cell)
+            (data-td "wire" wire-cell)
+            (data-td "remarks" remarks-cell)))))))))
+
+(defn make-csv
+  "Returns a Blob containing CSV data for the passes."
+  [passes]
+  (let [fixed-columns [["Carrier" :carrier]
+                       ["Pilot" :pilot]
+                       ["Start" :start]]
+        computed-columns  [["Grade" grade-cell]
+                           ["Score" score-cell]
+                           ["AW" aw-cell]
+                           ["X" x-cell]
+                           ["IM" im-cell]
+                           ["IC" ic-cell]
+                           ["AR" ar-cell]
+                           ["Power" power-cell]
+                           ["ATT" att-cell]
+                           ["Lineup and Wing" lineup-and-wing-cell]
+                           ["Wire" wire-cell]
+                           ["Remarks" remarks-cell]]
+        header-row (->> (into (mapv first fixed-columns)
+                              (mapv first computed-columns))
+                        (interpose ",")
+                        (apply str))
+        comment-text (fn [{:keys [text degree]}]
+                       (str (case degree
+                              :minor "("
+                              :unacceptable "_"
+                              "")
+                            text
+                            (case degree
+                              :minor ")"
+                              :unacceptable "_"
+                              "")))
+        pass-rows (for [pass passes]
+                    (let [assessment* (-> pass :assessment consolidate)]
+                      (->> (into (mapv (fn [[_ k]] (get pass k))
+                                       fixed-columns)
+                                 (for [[_ comments] computed-columns]
+                                   (->> assessment*
+                                        comments
+                                        (map comment-text)
+                                        (interpose " ")
+                                        (apply str))))
+                           (interpose ",")
+                           (apply str))))
+        csv-text (->> (into [header-row] pass-rows)
+                      (interpose "\n")
+                      (apply str))]
+    (js/Blob. #js [csv-text]
+              #js {"type" "text/csv;charset=utf-8;"})))
 
 (def keymap {49 :one
              97 :a
@@ -1008,6 +1085,7 @@ L30 1100")))
              112 :p
              78 :N
              80 :P
+             120 :x
              ;; TODO: The rest
              })
 
@@ -1024,6 +1102,7 @@ L30 1100")))
                  :l #(load-acmi nil)
                  :n next-pass
                  :p prev-pass
+                 :x export-csv
                  ;;:one #(swap! limit-displayed-passes? not)
                  })
 
@@ -1076,7 +1155,7 @@ L30 1100")))
   ;;:keypress keypress
   titlebar
   (formula-of
-   [loading? acmi passes]
+   [loading? acmi acmi-name passes]
    (if loading?
      (div
       :id "loading-placeholder"
@@ -1090,8 +1169,10 @@ L30 1100")))
       (if-not acmi
         (div :id "load-status" "No ACMI file loaded")
         (div :id "load-status" "Loaded ACMI: " acmi-name))
-      #_(when-not (-> passes count zero?)
-        (button :id "export-button" :click (fn [_]) "Export as CSV")))))
+      (when-not (-> passes count zero?)
+        (button :id "export-button"
+                :click export-csv
+                "Export as CSV")))))
   (assessment passes selected-pass limit-displayed-passes? sort-criteria)
   (div
    :id "graphs"
