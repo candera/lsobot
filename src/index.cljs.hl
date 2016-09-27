@@ -164,14 +164,7 @@
 
 (defn save-data
   [blob filename]
-  (let [a (gdom/createElement "a")
-        _ (-> (gdom/getDocument) .-body (gdom/appendChild a))
-        _ (gstyle/showElement a false)
-        url (-> js/window .-URL (.createObjectURL blob))]
-    (-> a .-href (set! url))
-    (-> a .-download (set! filename))
-    (.click a)
-    (-> js/window .-URL (.revokeObjectURL url))))
+  (js/saveAs blob filename))
 
 (declare make-csv)
 
@@ -181,7 +174,7 @@
     (save-data (make-csv @passes)
                (str (if (-> @acmi-name
                             .toLowerCase
-                            (.endsWith ".txt.acmi"))
+                            (gstring/endsWith ".txt.acmi"))
                       (subs @acmi-name
                             0
                             (- (count @acmi-name)
@@ -1149,7 +1142,9 @@ L30 1100")))
   (link :href "https://fonts.googleapis.com/css?family=Kalam"
         :rel "stylesheet"
         :type "text/css")
-  )
+  (script :src "FileSaver.min.js"
+          :type "text/javascript"
+          :charset "utf-8"))
  (body
   :id "body"
   ;;:keypress keypress
