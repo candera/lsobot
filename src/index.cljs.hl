@@ -725,7 +725,7 @@ L30 1100")))
 
 (def symbol-mapping
   {::grading/aoa-assessment        {:low  "F"
-                                    :high "S"}
+                                    :high "SLO"}
    ::grading/glideslope-assessment {:low  "LO"
                                     :high "H"}
    ::grading/lineup-assessment     {:low  "LUL"
