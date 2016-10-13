@@ -3,5 +3,5 @@
 cd $(dirname $0)/..
 
 bin/build --allow-dirty
-cp -R target/ s3://lsobot
+aws s3 sync target/ s3://lsobot
 open http://lsobot.s3-website-us-east-1.amazonaws.com

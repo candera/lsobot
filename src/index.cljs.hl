@@ -927,9 +927,11 @@ L30 1100")))
 (defn htmlize-cell
   [cell]
   (for [{:keys [text class degree]} cell]
-    (span
-     :class [(or class "") (if degree (name degree) "")]
-     text)))
+    (if (empty? text)
+      []
+      (span
+       :class [(or class "") (if degree (name degree) "")]
+       text))))
 
 (defn assessment
   "Returns UI for the assessment section"
