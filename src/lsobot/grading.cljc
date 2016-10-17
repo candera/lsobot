@@ -118,7 +118,7 @@
    :max-dist            1.0   ; Pass starts no farther away than this (nm).
    :recovery-skew       11    ; Degrees the deck of the carrier differs from
                                         ; the heading of the carrier
-   :coda                5      ; Seconds of data to keep after approach ends
+   :coda                4      ; Seconds of data to keep after approach ends
    :landing-point       [-13.5 -295.2 67.75] ; x,y,z position in carrier
                                         ; coordinates zero where landing
                                         ; should aim. Feet.
@@ -357,7 +357,10 @@
                   :pilot-loc pilot-loc
                   :approaching? approaching?
                   :distance d
-                  :pass-frame pass-frame})))))))
+                  :pass-frame pass-frame
+                  :s s
+                  :d d
+                  :c c})))))))
 
 (s/fdef aoa-data
         :args nil ; TODO
@@ -714,24 +717,40 @@
           (if (< (:min-time params) (- t (or start 0)))
             ;; Yes - record the pass
             (let [pass-frames* (conj pass-frames pass-frame)
-                  [coda remainder] (split-with
-                                    (fn [frame]
-                                      (< (::acmi/t frame) (+ t (:coda params))))
-                                    frames)
-                  coda-frames (->> coda
-                                   (map #(characterize-frame carrier-id
-                                                             pilot-id
-                                                             params
-                                                             %))
-                                   (map :pass-frame))]
+                  [coda remainder] (loop [coda []
+                                          [frame & more] frames
+                                          t0 nil]
+                                     ;; We record until either the
+                                     ;; pilot crosses the threshold,
+                                     ;; plus the coda, or until 30
+                                     ;; seconds have gone by,
+                                     ;; whichever comes first.
+                                     (let [cf (:pass-frame
+                                               (characterize-frame carrier-id
+                                                                   pilot-id
+                                                                   params
+                                                                   frame))]
+                                       (if (or (nil? frame)
+                                               (and t0
+                                                    (< (+ (long t0) (:coda params))
+                                                       (::acmi/t frame)))
+                                               (< (+ t 30)
+                                                  (::acmi/t frame)))
+                                         [(conj coda cf) more]
+                                         (recur (conj coda cf)
+                                                more
+                                                (or t0 (when (neg? (-> cf
+                                                                       ::downrange))
+                                                         (::acmi/t frame)))))))
+                  coda-frames coda]
               (recur remainder
                      nil
                      nil
                      []
                      (conj passes (into pass-frames* coda-frames)
                            #_(assess-pass params
-                                               pilot-id
-                                    ))))
+                                          pilot-id
+                                          ))))
             ;; Nope - go back to looking
             (recur frames
                    nil
