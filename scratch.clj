@@ -863,3 +863,32 @@
               [[:pilot :descending]
                [:start :ascending]
                [:carrier :descending]]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def a (-> "acmi/TAPE0012-1.txt.acmi" slurp acmi/read-acmi))
+
+(def p
+  (grading/find-passes
+   a
+   "b770a8680000000a"      ;; Carrier
+   "b770a86800000008"      ;; AV8R
+   grading/default-parameters))
+
+(def ps (grading/passes a grading/default-parameters))
+
+(def f (acmi/frame-at a 36850.6))
+
+(pprint (acmi/entity f "b770a86800000008"))
+
+(pprint (dissoc (grading/characterize-frame
+                 "b770a8680000000a"   ;; Carrier
+                 "b770a86800000008"   ;; AV8R
+                 grading/default-parameters
+                 f)
+                :pass-frame))
+
+(units/s->dhms 36850.6)
+
+(-> ps (get "b770a8680000000a") (get "b770a86800000008") second ::grading/grade grading/grades :score)
+
