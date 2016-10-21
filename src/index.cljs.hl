@@ -417,7 +417,10 @@ L30 1100")))
              :attr {:class (deviation-classes "aoa-deviation"
                                               (-> frame
                                                   ::grading/aoa
-                                                  ::grading/deviation))}
+                                                  ::grading/deviation))
+                    :aoa (-> frame ::grading/aoa ::grading/value)
+                    :pitch (::grading/pitch frame)
+                    :path-a (::grading/path-a frame)}
              :cx downrange
              :cy (+ (* 100 (- aoa (-> params :aoa :ideal)))
                     (* elevation-exaggeration height))
