@@ -378,7 +378,7 @@
         vd (- v1 v0)
         zd (- z1 z0)
         d (Math/sqrt (+ (* ud ud) (* vd vd) (* zd zd)))
-        path-a (units/rad->deg (Math/atan2 (- z1 z0) d))
+        path-a (units/rad->deg (Math/asin (/ zd d)))
         pitch (::acmi/pitch p0)]
     {::zd     zd
      ::d      d
