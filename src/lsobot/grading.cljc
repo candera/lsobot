@@ -574,7 +574,7 @@
     (mapv (fn [f0 f1]
             (merge f1 (derived-data (:aoa params) pilot-id f0 f1)))
           distinct-frames
-          (drop 4 distinct-frames))))
+          (drop 2 distinct-frames))))
 
 (defn low-and-slow-at-ramp?
   [assessment]
