@@ -569,3 +569,7 @@ svg.help-circle {
     float: right;
     height: 120px;
 }
+
+.version {
+    font-size: 75%;
+}

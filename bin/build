@@ -30,7 +30,7 @@ fi
 echo "Building"
 
 cd $(dirname $0)/..
-boot prod
+BOOT_JVM_OPTIONS="-DLSOBOT.VERSION=${GIT_VERSION}" boot prod
 cd website
 find . | grep -v ".git" | grep -v '.' | grep -v '..' | xargs rm -rf
 cp -R ../target/ .

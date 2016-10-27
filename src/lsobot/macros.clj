@@ -15,3 +15,8 @@
   [name cells & body]
   `(def ~name (formula-of ~cells ~@body)))
 
+
+(defmacro version
+  []
+  (let [v (System/getProperty "LSOBOT.VERSION")]
+   (or v "DEV")))

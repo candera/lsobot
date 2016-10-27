@@ -20,17 +20,11 @@
   (:import [goog.events EventType])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]
-   [lsobot.macros :refer [formula-of defformula]]))
+   [lsobot.macros :refer [formula-of defformula version]]))
 
 (svg-fix/fix-svg!)
 
 ;;; Utilities
-
-(defn time-str
-  [acmi t]
-  ;; For now we're just going to assume the reference time is midnight
-  (let [{:keys [d h m s]} (units/s->dhms t)]
-    (gstring/format "%02d/%02d:%02d:%02d" d h m (long s))))
 
 (defn property
   [acmi id prop]
@@ -1135,7 +1129,8 @@ L30 1100")))
           (td "Concept, testing, project management"))
       (tr (td :class "person" (a :href (urls :drillin) "Drillin"))
           (td "CO, 401st VFS")))
-     (p "Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development.")))))
+     (p "Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development.")
+     (p {:class "version"} (version))))))
 
 (html
  (head
