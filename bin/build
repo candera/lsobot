@@ -17,8 +17,8 @@ while [[ "$1" != "" ]]; do
             ALLOW_DIRTY=yes
             if [[ $IS_DIRTY == 1 ]] ; then
                 GIT_SHA="${GIT_SHA}-dirty"
+                GIT_VERSION="${GIT_VERSION}-dirty"
             fi
-            GIT_VERSION="${GIT_VERSION}-dirty"
             ;;
         "--verbose" | "-v")
             set -x
