@@ -6,13 +6,18 @@ set -e
 # PROJECT_VERSION=$(head -1 project.clj | grep -oE '\d+\.\d+(\.\d+)?(-SNAPSHOT)?')
 GIT_VERSION=$(git describe --tags)
 GIT_SHA=$(git rev-parse HEAD)
+if [[ (-n "$(git status --porcelain)") ]]; then
+    IS_DIRTY=1
+fi
 
 while [[ "$1" != "" ]]; do
     case "$1" in
         "--allow-dirty")
             echo "Allowing uncommitted changes in the build."
             ALLOW_DIRTY=yes
-            GIT_SHA="${GIT_SHA}-dirty"
+            if [[ $IS_DIRTY == 1 ]] ; then
+                GIT_SHA="${GIT_SHA}-dirty"
+            fi
             GIT_VERSION="${GIT_VERSION}-dirty"
             ;;
         "--verbose" | "-v")
@@ -22,7 +27,7 @@ while [[ "$1" != "" ]]; do
     shift
 done
 
-if [[ ("$ALLOW_DIRTY" != "yes") && (-n "$(git status --porcelain)") ]]; then
+if [[ ("$ALLOW_DIRTY" != "yes") && ($IS_DIRTY == 1) ]]; then
   echo "Project directory has uncommitted changes. Refusing to build."
   exit 1
 fi
