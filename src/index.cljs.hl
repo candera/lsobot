@@ -72,7 +72,7 @@
     {:assessment assessment
      :carrier    (-> acmi ::acmi/frames last (acmi/entity carrier-id) ::acmi/name)
      :pilot      (-> acmi ::acmi/frames last (acmi/entity pilot-id) ::acmi/pilot)
-     :start      (->> assessment ::grading/frames first ::acmi/t (time-str nil))}))
+     :start      (->> assessment ::grading/frames first ::acmi/t units/time->str)}))
 
 (defc sort-criteria
   [[:carrier :ascending]
@@ -1251,26 +1251,3 @@ L30 1100")))
   (gevents/listen body EventType.KEYPRESS keypress))
 
 (log/merge-config! {:ns-blacklist ["hoplon.app-pages._index_DOT_html"]})
-
-(comment
-  ;; This draw the table of passes. Might use it again
-  (table
-   :id "passes"
-   (thead (tr (td) (td "Carrier") (td "Pilot") (td "Pass time")))
-   (tbody
-    (for-tpl [{:keys [carrier-id pilot-id start index]} passes]
-      (do
-        (log/debug :index index
-                   :carrier-id carrier-id
-                   :pilot-id pilot-id)
-        (tr
-         (td (input :type "radio"
-                    :name "pass"
-                    :click #(reset! selected-pass-index @index)
-                    :checked (formula-of
-                              [selected-pass-index]
-                              (= selected-pass-index index))))
-         (td (cell= (property carrier-id ::acmi/name)))
-         (td (cell= (property pilot-id ::acmi/pilot)))
-         (td (cell= (time-str reference-time start))))))))
-  )

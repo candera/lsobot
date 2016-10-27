@@ -1,5 +1,9 @@
 (ns lsobot.units
-  "Converstion between different unit systems.")
+  "Converstion between different unit systems."
+  #?(:cljs (:require [goog.string :as gstring]
+                     [goog.string.format]))
+  #?(:cljs (:require-macros [lsobot.spec :as s]
+                            [lsobot.spec-gen :as sgen])))
 
 (def ft-per-m 3.28084)
 
@@ -45,3 +49,10 @@
      :h h
      :m m
      :s s}))
+
+(defn time->str
+  [t]
+  ;; For now we're just going to assume the reference time is midnight
+  (let [{:keys [d h m s]} (s->dhms t)]
+    (#?(:cljs gstring/format :clj format) "%02d/%02d:%02d:%02d" d h m (long s))))
+

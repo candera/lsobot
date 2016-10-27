@@ -1,8 +1,8 @@
 (def project 'lsobot)
 (def version "0.1.0-SNAPSHOT")
 
-(set-env! :resource-paths #{"resources"}
-          :source-paths   #{"src" "dev"}
+(set-env! :resource-paths #{"resources" "test-resources"}
+          :source-paths   #{"src" "dev" "test"}
           :dependencies   '[[org.clojure/clojurescript "1.9.76"]
                             [tailrecursion/boot.task   "2.2.4"]
                             [adzerk/boot-cljs          "1.7.228-1"]
@@ -24,7 +24,7 @@
                             [com.taoensso/timbre "4.7.0"]
 
                             [org.clojure/test.check "RELEASE" :scope "test"]
-                            ;;[adzerk/boot-test "RELEASE" :scope "test"]
+                            [adzerk/boot-test "RELEASE" :scope "test"]
                             [clojure-complete "0.2.4" :scope "test"]]
           :asset-paths    #{"assets"})
 
@@ -45,6 +45,7 @@
  '[adzerk.boot-cljs-repl   :refer [cljs-repl start-repl]]
  '[adzerk.boot-reload       :refer [reload]]
  '[hoplon.boot-hoplon       :refer [hoplon prerender]]
+ '[adzerk.boot-test         :refer :all]
  '[tailrecursion.boot-jetty :refer [serve]]
  'complete.core                         ; For inf-clojure completion
  '[user :refer :all]
