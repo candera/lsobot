@@ -308,7 +308,8 @@
                                  (mapv * [1 -1 1]))
                [crosstrack-error downrange height]   coords
                ;; The position we care about is the position of the hook
-               pitch (-> frame (acmi/entity pilot-id) ::acmi/pitch units/deg->rad -)
+               pitch (or (some-> frame (acmi/entity pilot-id) ::acmi/pitch units/deg->rad -)
+                         0)
                [hx hy hz] (:hook-offset params)
                ;; x assumed to be zero
                hook-delta-y (- (* hy (Math/cos pitch))
@@ -558,7 +559,8 @@
                                       v (::acmi/v p)
                                       z (::acmi/alt p)
                                       pos [u v z]]
-                                  (if (= last-pos pos)
+                                  (if (or (= last-pos pos)
+                                          (some nil? pos))
                                     acc
                                     (assoc acc
                                            :frames
