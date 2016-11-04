@@ -1,50 +1,14 @@
-# lsobot
+# LSOBot
+A carrier landing grading tool for Falcon BMS.
 
-FIXME: description
+[!screenshot](doc/screenshot.png)
 
-## Installation
+# How to Install
+It's a web app - there's nothing to install. Just visit https://candera.github.io/lsobot.
 
-Download from http://example.com/FIXME.
+# How to Use
+TODO: update the below links.
 
-## Usage
+Check out the [official announcement thread](http://www.bmsforum.org/forum/showthread.php?27640-Release-WeatherGen-A-BMS-random-weather-generator),
+or the [tutorial video](https://www.youtube.com/watch?v=6Y3WTBraVxE) I made.
 
-FIXME: explanation
-
-Run the project directly:
-
-    $ boot run
-
-Run the project's tests (they'll fail until you edit them):
-
-    $ boot test
-
-Build an uberjar from the project:
-
-    $ boot build
-
-Run the uberjar:
-
-    $ java -jar target/lsobot-0.1.0-SNAPSHOT-standalone.jar [args]
-
-## Options
-
-FIXME: listing of options this app accepts.
-
-## Examples
-
-...
-
-### Bugs
-
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
-
-## License
-
-Copyright © 2016 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
