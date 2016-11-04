@@ -1,7 +1,7 @@
 # LSOBot
 A carrier landing grading tool for Falcon BMS.
 
-[!screenshot](doc/screenshot.png)
+![screenshot](doc/screenshot.png)
 
 # How to Install
 It's a web app - there's nothing to install. Just visit https://candera.github.io/lsobot.
