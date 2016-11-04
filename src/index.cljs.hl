@@ -1135,7 +1135,7 @@ L30 1100")))
            "vLSO")
         ".")
      (p "Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development.")
-     (p {:class "version"} (version))))))
+     (p {:class "version"} "Version: " (version))))))
 
 (html
  (head
