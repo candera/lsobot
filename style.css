@@ -1,0 +1,575 @@
+html,body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Open Sans Condensed', sans-serif;
+    font-weight: 500;
+    background-color: #FDFFD9;
+    padding-right: 3px;
+}
+
+#content {
+}
+
+#titlebar {
+    background: black;
+    color: white;
+    padding: 4px 13px;
+    margin-bottom: 2px;
+    height: 64px;
+}
+
+#words {
+    padding-top: 16px;
+    font-size: 200%;
+    display: inline-block;
+}
+
+#byline {
+    font-size: 50%;
+    padding-left: 10px;
+}
+
+#byline a {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#byline a:link {
+    color: white;
+}
+
+#byline a:visited {
+    color: white;
+}
+
+#byline a:hover {
+    color: lightblue;
+}
+
+#winglogo {
+    height: 64px;
+    display: inline-block;
+    float: right;
+}
+
+
+#helpstring {
+    font-size: 50%;
+    position: absolute;
+    right: 100px;
+    top: 45px;
+}
+
+#helpstring a {
+    margin-left: 0.2em;
+}
+
+#helpstring a:visited {
+    color: white
+}
+
+#helpstring a {
+    color: white
+}
+
+#load-button {
+}
+
+#pass-selection-section select {
+    min-width: 120px;
+    float: right;
+    margin-top: 2px;
+}
+
+#pass-selection-section div {
+}
+
+#graphs {
+    width: 100%;
+}
+
+.graph-label-wrapper {
+   background: black;
+   width: 100%;
+}
+
+.graph-label {
+    display: inline-block;
+    color: white;
+    font-weight: 600;
+    padding-left: 4px;
+}
+
+#passes td {
+    padding-right: 7px;
+}
+
+table {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+tr:nth-child(even) {
+    /* background: #F2F0E0; */
+}
+
+#loading-placeholder {
+}
+
+#load-status {
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+#load-button {
+    margin-right: 5px;
+}
+
+#loaded-file-controls {
+}
+
+#spinner {
+    height: 20px;
+}
+
+#elevation,#plan,#aoa {
+    background: #0d0d27;
+    border: solid 1px black;
+    margin-top: 0;
+    width: 100%;
+    /* padding-right: 3px; */
+}
+
+#aoa {
+    display: none;
+}
+
+.carrier {
+    fill: red;
+}
+
+.approach-path {
+    fill: white;
+}
+
+.carrier-top,.carrier-side {
+    fill: #5d5c5c;
+}
+
+.carrier-top-markings {
+    stroke: white;
+    stroke-width: 20;
+    opacity: 0.7;
+}
+
+.carrier-top-markings.middle {
+    stroke-width: 13;
+}
+
+.carrier-top-markings.end {
+    stroke-width: 50;
+}
+
+.sky {
+    fill: #63839e;
+}
+
+.zero-dot {
+    fill: red;
+    /*display: none;*/
+}
+
+.landing-point-dot {
+    fill: yellow;
+}
+
+.guideline {
+    stroke: white;
+    opacity: 0.7;
+    stroke-width: 5;
+    stroke-dasharray: 50 50;
+}
+
+.aoa-data {
+    stroke: white;
+    stroke-width: 20;
+    opacity: 1.0;
+}
+
+.original {
+    stroke: red;
+}
+
+.pitch {
+    stroke: green;
+}
+
+.path-alpha {
+    stroke: yellow;
+}
+
+.unacceptable {
+    stroke: red;
+    fill: red;
+    text-decoration: underline;
+}
+
+#assessments td,
+#assessments th {
+    border: solid 1px black;
+    vertical-align: bottom;
+    padding: 3px;
+}
+
+.sorted-column {
+    cursor: pointer;
+}
+
+.column-sorter {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid black;
+    display: inline-block;
+    margin-left: 3px;
+    vertical-align: middle;
+}
+
+.column-sorter.secondary {
+    border-top: 7px solid #b5b4b4;
+}
+
+.column-sorter.descending {
+    transform: rotate(180deg);
+}
+
+.assessment-symbol.minor::before {
+    content: "(";
+}
+
+.assessment-symbol.minor::after {
+    content: ")";
+}
+
+.assessment-cell {
+    text-align: center;
+    font-family: 'Kalam', cursive;
+}
+
+.assessment-cell.carrier,
+.assessment-cell.pilot,
+.assessment-cell.start {
+    font-family: 'Open Sans Condensed', sans-serif;
+}
+
+span.assessment-symbol {
+    margin-left: 3px;
+    display: inline-block;
+}
+
+#limit-pass-display {
+    margin: auto;
+}
+
+.ideal {
+    stroke: white;
+    fill: lime;
+    stroke-width: 5;
+}
+
+#assessment {
+}
+
+#assessment-props {
+    width: 100%;
+}
+
+#zone-assessment {
+    margin-top: 7px
+}
+
+#assessments {
+    /* font-family: 'Kalam', cursive; */
+    margin-top: 10px;
+    margin-bottom: 30px;
+    background-color: #fdfdf7;
+}
+
+.header-1,.header-2 {
+    /* font-family: initial; */
+}
+
+.header-1 th,
+.header-2 th {
+    min-width: 20px;
+    font-weight: normal;
+}
+
+
+.zone-dim-label, .zone-label {
+    background: black;
+    color: white;
+    text-align: center;
+}
+
+.zone-dim-label {
+    min-width: 60px;
+}
+
+.zone-label {
+    writing-mode: vertical-lr;
+    display: block;
+    transform: rotate(180deg);
+    min-height: 50px;
+    min-width: 22px;
+}
+
+.zone-assessment-value {
+    text-align: center;
+    border-right: 1px dashed grey;
+    padding: 5px;
+}
+
+.zone-assessment-corner {
+    min-height: 22px;
+}
+
+.good {
+    stroke: lime;
+    fill: lime;
+}
+
+.minor {
+    stroke: yellow;
+    fill: yellow;
+}
+
+.major {
+    stroke: orange;
+    fill: orange;
+}
+
+.guideline.good {
+    stroke-width: 5;
+    stroke: lime;
+    opacity: 1;
+    stroke-dasharray: 30 0;
+}
+
+.guideline.minor {
+    stroke-width: 5;
+    stroke: yellow;
+    opacity: 1;
+    stroke-dasharray: 30 0;
+}
+
+.guideline.major {
+    stroke-width: 5;
+    stroke: orange;
+    opacity: 1;
+    stroke-dasharray: 30 0;
+}
+
+.axis-label {
+    stroke: white;
+    fill: white;
+    opacity: 0.7;
+    stroke-width: 5;
+    font-size: 150px;
+}
+
+.axis-label.good {
+    stroke: lime;
+    fill: lime;
+}
+
+.axis-label.minor {
+    stroke: yellow;
+    fill: yellow;
+}
+
+.axis-label.major {
+    stroke: orange;
+    fill: orange;
+}
+
+
+.aoa.axis-label.good,
+.aoa.axis-label.minor,
+.glideslope.axis-label.good,
+.glideslope.axis-label.minor,
+.angle.axis-label.minor
+{
+    display: none;
+}
+
+#pass-selection-section label {
+    margin-right: 3px;
+}
+
+#pass-selection-section select {
+    margin-right: 10px;
+}
+
+.zone {
+    opacity: 1.0;
+    fill: yellow;
+    stroke: yellow;
+    stroke-dasharray: 50 30;
+}
+
+.grade-score {
+    margin-left: 3px;
+    font-size: 80%
+}
+
+.assessment-cell.remarks {
+    text-align: start;
+}
+
+.assessment-cell .not-implemented {
+    color: lightgrey;
+    font-size: 80%;
+}
+
+.assessment-cell .not-implemented::after {
+    content: "-";
+}
+
+.assessment-cell .perfect {
+    text-decoration: underline;
+}
+
+.svg-container {
+    position: relative;
+    height: 0;
+    width: 100%;
+    padding: 0;
+    padding-bottom: 100%;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+svg.graph {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    left: 0;
+    top: 0;
+}
+
+.help {
+    display: inline-block;
+    position: relative;
+}
+
+.help .img {
+    width: 18px;
+    height: 18px;
+    color: white;
+    background: darkblue;
+    border-radius: 9px;
+    text-align: center;
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 80%;
+}
+
+.help .content {
+    position: absolute;
+    top: -3px;
+    left: 28px;
+    border: 1px solid black;
+    background: #f9f29a;
+    width: auto;
+    min-width: 425px;
+    z-index: 100;
+    display: none;
+    text-align: left;
+    padding: 10px 15px 0 4px;
+    color: black;
+    opacity: 0.96;
+}
+
+.help .hidden {
+    display: none;
+}
+
+.help .content p {
+    margin-top: 0;
+    /* margin-bottom: 0; */
+}
+
+.help .content dt {
+    font-weight: bold;
+}
+
+svg.help-circle {
+    width: 15px;
+    height: 15px;
+    margin-right: 4px;
+    background: #0d0d27;
+}
+
+.close-help {
+    position: absolute;
+    color: red;
+    font-size: 150%;
+    border: solid 1px black;
+    right: -1px;
+    top: -1px;
+    padding: 2px;
+    padding-top: 0;
+}
+
+#scoresheet-help {
+    float: left;
+}
+
+#scoresheet-help .content {
+    min-width: 500px;
+
+}
+
+/* Credits */
+
+.featherlight .featherlight-content {
+    background: #FDFFD9;
+    font-size: 125%;
+    max-width: 80%;
+    padding: 0;
+}
+
+#credits h1 {
+    background: black;
+    color: white;
+    padding-left: 20px;
+}
+
+#credits-body {
+    padding: 0 20px 0 20px;
+}
+
+#credits table {
+    border-width: 0;
+}
+
+#credits table .person {
+    border-width: 0;
+    font-size: 120%;
+    font-variant: small-caps;
+    padding-right: 30px;
+}
+
+#credits .squadron-emblem {
+    float: right;
+    height: 120px;
+}
+
+.version {
+    font-size: 75%;
+}
