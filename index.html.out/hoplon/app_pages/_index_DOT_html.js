@@ -26,7 +26,7 @@ if(cljs.core.truth_(String.prototype.startsWith)){
 } else {
 taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_config_STAR_,cljs.core.cst$kw$debug,"hoplon.app-pages._index_DOT_html",null,35,cljs.core.cst$kw$p,cljs.core.cst$kw$auto,(new cljs.core.Delay((function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Setting IE polyfill for String.startsWith"], null);
-}),null)),null,-1862461436);
+}),null)),null,254426350);
 
 String.prototype.startsWith = (function (s,pos){
 var pos_STAR_ = (function (){var or__17769__auto__ = pos;
@@ -1474,7 +1474,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$sym$pass_DASH_parameters,"=>",result__11182__auto__], null);
 });})(result__11182__auto__,map__36030,map__36030__$1,west,east,high,low))
-,null)),null,847015643);
+,null)),null,-419248734);
 
 return result__11182__auto__;
 })(),null], null);
@@ -1495,7 +1495,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___36183], null);
 });})(e__11144__auto___36183,temp__6503__auto___36182,vec__36035,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__,map__36030,map__36030__$1,west,east,high,low))
-,null)),null,2072088414);
+,null)),null,1562940495);
 
 throw e__11144__auto___36183;
 } else {
@@ -2064,7 +2064,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.list(cljs.core.cst$sym$_DASH__GT_,cljs.core.cst$sym$assessment,cljs.core.cst$kw$lsobot$grading_SLASH_grade),"=>",result__11182__auto__], null);
 });})(result__11182__auto__))
-,null)),null,-444251632);
+,null)),null,-2011077104);
 
 return result__11182__auto__;
 })(),null], null);
@@ -2085,7 +2085,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___36544], null);
 });})(e__11144__auto___36544,temp__6503__auto___36543,vec__36535,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__))
-,null)),null,-340197871);
+,null)),null,-1384734338);
 
 throw e__11144__auto___36544;
 } else {
@@ -2097,7 +2097,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.list(cljs.core.cst$sym$_DASH__GT_,cljs.core.cst$sym$assessment,cljs.core.cst$kw$lsobot$grading_SLASH_grade),"=>",result__11182__auto__], null);
 });})(result__11182__auto__))
-,null)),null,-1364279362);
+,null)),null,979895106);
 
 return result__11182__auto__;
 })(),null], null);
@@ -2118,7 +2118,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___36546], null);
 });})(e__11144__auto___36546,temp__6503__auto___36545,vec__36539,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__))
-,null)),null,319467351);
+,null)),null,255709913);
 
 throw e__11144__auto___36546;
 } else {
@@ -2556,7 +2556,7 @@ return cljs.core.update_in.cljs$core$IFn$_invoke$arity$4(assessment__$1,new cljs
 hoplon.app_pages._index_DOT_html.change_sort_criteria = (function hoplon$app_pages$_index_DOT_html$change_sort_criteria(criteria,column){
 taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_config_STAR_,cljs.core.cst$kw$debug,"hoplon.app-pages._index_DOT_html",null,891,cljs.core.cst$kw$p,cljs.core.cst$kw$auto,(new cljs.core.Delay((function (){
 return new cljs.core.PersistentVector(null, 5, 5, cljs.core.PersistentVector.EMPTY_NODE, ["change-sort-criteria",cljs.core.cst$kw$criteria,criteria,cljs.core.cst$kw$column,column], null);
-}),null)),null,1392077071);
+}),null)),null,-1312310939);
 
 var vec__36715 = criteria;
 var vec__36718 = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__36715,(0),null);
@@ -2814,7 +2814,7 @@ var _ = taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbr
 return (function (){
 return new cljs.core.PersistentVector(null, 5, 5, cljs.core.PersistentVector.EMPTY_NODE, ["grade",cljs.core.cst$kw$consolidated,cljs.core.cst$kw$lsobot$grading_SLASH_grade.cljs$core$IFn$_invoke$arity$1(assessment_STAR_),cljs.core.cst$kw$normal,cljs.core.cst$kw$lsobot$grading_SLASH_grade.cljs$core$IFn$_invoke$arity$1(assessment__$1)], null);
 });})(i__37948,map__38020,map__38020__$1,carrier,pilot,start,assessment__$1,assessment_STAR_,pass,c__18621__auto__,size__18622__auto__,b__37949,s__37947__$2,temp__6503__auto__,selected_pass_cell,G__37625,G__37626,G__37627))
-,null)),null,-2024758563);
+,null)),null,2031846691);
 var lead_td = ((function (i__37948,map__38020,map__38020__$1,carrier,pilot,start,assessment__$1,assessment_STAR_,_,pass,c__18621__auto__,size__18622__auto__,b__37949,s__37947__$2,temp__6503__auto__,selected_pass_cell,G__37625,G__37626,G__37627){
 return (function (class$,content){
 var G__38022 = cljs.core.cst$kw$class;
@@ -2891,7 +2891,7 @@ var _ = taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbr
 return (function (){
 return new cljs.core.PersistentVector(null, 5, 5, cljs.core.PersistentVector.EMPTY_NODE, ["grade",cljs.core.cst$kw$consolidated,cljs.core.cst$kw$lsobot$grading_SLASH_grade.cljs$core$IFn$_invoke$arity$1(assessment_STAR_),cljs.core.cst$kw$normal,cljs.core.cst$kw$lsobot$grading_SLASH_grade.cljs$core$IFn$_invoke$arity$1(assessment__$1)], null);
 });})(map__38054,map__38054__$1,carrier,pilot,start,assessment__$1,assessment_STAR_,pass,s__37947__$2,temp__6503__auto__,selected_pass_cell,G__37625,G__37626,G__37627))
-,null)),null,-302360227);
+,null)),null,-1405560836);
 var lead_td = ((function (map__38054,map__38054__$1,carrier,pilot,start,assessment__$1,assessment_STAR_,_,pass,s__37947__$2,temp__6503__auto__,selected_pass_cell,G__37625,G__37626,G__37627){
 return (function (class$,content){
 var G__38056 = cljs.core.cst$kw$class;
@@ -3192,7 +3192,7 @@ return hoplon.app_pages._index_DOT_html.load_acmi(null);
 hoplon.app_pages._index_DOT_html.keypress = (function hoplon$app_pages$_index_DOT_html$keypress(e){
 taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_config_STAR_,cljs.core.cst$kw$debug,"hoplon.app-pages._index_DOT_html",null,1107,cljs.core.cst$kw$p,cljs.core.cst$kw$auto,(new cljs.core.Delay((function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Key pressed",cljs.core.cst$kw$keycode,e.keyCode], null);
-}),null)),null,-1493517479);
+}),null)),null,-263794765);
 
 var temp__6503__auto__ = (function (){var G__38295 = e;
 var G__38295__$1 = (((G__38295 == null))?null:G__38295.keyCode);
@@ -3283,7 +3283,7 @@ return (hoplon.core.p.cljs$core$IFn$_invoke$arity$3 ? hoplon.core.p.cljs$core$IF
 var G__38312 = (hoplon.core.p.cljs$core$IFn$_invoke$arity$1 ? hoplon.core.p.cljs$core$IFn$_invoke$arity$1("Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development.") : hoplon.core.p.call(null,"Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development."));
 var G__38313 = (function (){var G__38421 = new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"version"], null);
 var G__38422 = "Version: ";
-var G__38423 = "v039";
+var G__38423 = "v040";
 return (hoplon.core.p.cljs$core$IFn$_invoke$arity$3 ? hoplon.core.p.cljs$core$IFn$_invoke$arity$3(G__38421,G__38422,G__38423) : hoplon.core.p.call(null,G__38421,G__38422,G__38423));
 })();
 return (hoplon.core.div.cljs$core$IFn$_invoke$arity$7 ? hoplon.core.div.cljs$core$IFn$_invoke$arity$7(G__38307,G__38308,G__38309,G__38310,G__38311,G__38312,G__38313) : hoplon.core.div.call(null,G__38307,G__38308,G__38309,G__38310,G__38311,G__38312,G__38313));

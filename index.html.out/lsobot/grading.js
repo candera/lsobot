@@ -285,7 +285,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$sym$last_DASH_height,"=>",result__11182__auto__], null);
 });})(result__11182__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,-170076290);
+,null)),null,-582421502);
 
 return result__11182__auto__;
 })(),null], null);
@@ -306,7 +306,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___33988], null);
 });})(e__11144__auto___33988,temp__6503__auto___33987,vec__33971,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,997224436);
+,null)),null,-1249491539);
 
 throw e__11144__auto___33988;
 } else {
@@ -318,7 +318,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$sym$last_DASH_downrange,"=>",result__11182__auto__], null);
 });})(result__11182__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,2021815461);
+,null)),null,443768392);
 
 return result__11182__auto__;
 })(),null], null);
@@ -339,7 +339,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___33990], null);
 });})(e__11144__auto___33990,temp__6503__auto___33989,vec__33975,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,1549154475);
+,null)),null,-516709793);
 
 throw e__11144__auto___33990;
 } else {
@@ -351,7 +351,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$sym$last_DASH_downrange,"=>",result__11182__auto__], null);
 });})(result__11182__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,-900877969);
+,null)),null,-1746703836);
 
 return result__11182__auto__;
 })(),null], null);
@@ -372,7 +372,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___33992], null);
 });})(e__11144__auto___33992,temp__6503__auto___33991,vec__33979,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,870434260);
+,null)),null,-1105356892);
 
 throw e__11144__auto___33992;
 } else {
@@ -384,7 +384,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$sym$deck_DASH_downrange,"=>",result__11182__auto__], null);
 });})(result__11182__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,1005770867);
+,null)),null,-2000907299);
 
 return result__11182__auto__;
 })(),null], null);
@@ -405,7 +405,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___33994], null);
 });})(e__11144__auto___33994,temp__6503__auto___33993,vec__33983,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__,map__33950,map__33950__$1,wire_interval,ramp_to_1_wire,landing_area_width,landing_area_length,touchdown_height,trap_speed,deck_downrange,deck_uprange,max_uprange,min_speed,deck_frames,vec__33951,_,___$1,last_height,last_downrange,min_deck_height))
-,null)),null,-980196154);
+,null)),null,915276862);
 
 throw e__11144__auto___33994;
 } else {
@@ -517,7 +517,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Assesssing",cljs.core.cst$kw$dimension,key], null);
 });})(i__34050,vec__34060,dimension,key,c__18621__auto__,size__18622__auto__,b__34051,s__34049__$2,temp__6503__auto__,map__34046,map__34046__$1,params,frames,from,to))
-,null)),null,-1660643540);
+,null)),null,-1064932236);
 
 return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [dimension,lsobot.grading.assess_deviation(new cljs.core.PersistentArrayMap(null, 5, [cljs.core.cst$kw$params,params,cljs.core.cst$kw$path,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [key,cljs.core.cst$kw$lsobot$grading_SLASH_deviation], null),cljs.core.cst$kw$frames,frames,cljs.core.cst$kw$from,from,cljs.core.cst$kw$to,to], null))], null);
 })()
@@ -545,7 +545,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Assesssing",cljs.core.cst$kw$dimension,key], null);
 });})(vec__34063,dimension,key,s__34049__$2,temp__6503__auto__,map__34046,map__34046__$1,params,frames,from,to))
-,null)),null,1234385737);
+,null)),null,-1897359241);
 
 return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [dimension,lsobot.grading.assess_deviation(new cljs.core.PersistentArrayMap(null, 5, [cljs.core.cst$kw$params,params,cljs.core.cst$kw$path,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [key,cljs.core.cst$kw$lsobot$grading_SLASH_deviation], null),cljs.core.cst$kw$frames,frames,cljs.core.cst$kw$from,from,cljs.core.cst$kw$to,to], null))], null);
 })()
@@ -602,13 +602,13 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 15, 5, cljs.core.PersistentVector.EMPTY_NODE, ["assess-wire penultimate",cljs.core.cst$kw$t,cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(last_aloft_34108__$1),cljs.core.cst$kw$start,lsobot.units.s__GT_dhms(cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(cljs.core.first(frames))),cljs.core.cst$kw$hook_DASH_downrange,hook_downrange_34111__$1,cljs.core.cst$kw$hook_DASH_height,hook_height_34112__$1,cljs.core.cst$kw$hook_DASH_contact,hook_contact_34113__$1,cljs.core.cst$kw$pitch,cljs.core.cst$kw$lsobot$acmi_SLASH_pitch.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$lsobot$grading_SLASH_pilot.cljs$core$IFn$_invoke$arity$1(last_aloft_34108__$1)),cljs.core.cst$kw$path_DASH_a,cljs.core.cst$kw$lsobot$grading_SLASH_path_DASH_a.cljs$core$IFn$_invoke$arity$1(last_aloft_34108__$1)], null);
 });})(penultimate_34107,last_aloft_34108__$1,vec__34096_34109,__34110__$1,hook_downrange_34111__$1,hook_height_34112__$1,hook_contact_34113__$1,map__34087,map__34087__$1,wire_interval,hook_offset,touchdown_height,aloft,last_aloft,vec__34088,_,hook_downrange,hook_height,hook_contact))
-,null)),null,-2027314741);
+,null)),null,-2029887894);
 
 taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_config_STAR_,cljs.core.cst$kw$debug,"lsobot.grading",null,513,cljs.core.cst$kw$p,cljs.core.cst$kw$auto,(new cljs.core.Delay(((function (map__34087,map__34087__$1,wire_interval,hook_offset,touchdown_height,aloft,last_aloft,vec__34088,_,hook_downrange,hook_height,hook_contact){
 return (function (){
 return new cljs.core.PersistentVector(null, 15, 5, cljs.core.PersistentVector.EMPTY_NODE, ["assess-wire last",cljs.core.cst$kw$t,cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(last_aloft),cljs.core.cst$kw$start,lsobot.units.s__GT_dhms(cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(cljs.core.first(frames))),cljs.core.cst$kw$hook_DASH_downrange,hook_downrange,cljs.core.cst$kw$hook_DASH_height,hook_height,cljs.core.cst$kw$hook_DASH_contact,hook_contact,cljs.core.cst$kw$pitch,cljs.core.cst$kw$lsobot$acmi_SLASH_pitch.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$lsobot$grading_SLASH_pilot.cljs$core$IFn$_invoke$arity$1(last_aloft)),cljs.core.cst$kw$path_DASH_a,cljs.core.cst$kw$lsobot$grading_SLASH_path_DASH_a.cljs$core$IFn$_invoke$arity$1(last_aloft)], null);
 });})(map__34087,map__34087__$1,wire_interval,hook_offset,touchdown_height,aloft,last_aloft,vec__34088,_,hook_downrange,hook_height,hook_contact))
-,null)),null,-565754046);
+,null)),null,1623551452);
 
 var down_34114 = cljs.core.first(cljs.core.drop_while.cljs$core$IFn$_invoke$arity$2(((function (map__34087,map__34087__$1,wire_interval,hook_offset,touchdown_height,aloft,last_aloft,vec__34088,_,hook_downrange,hook_height,hook_contact){
 return (function (frame){
@@ -630,7 +630,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 15, 5, cljs.core.PersistentVector.EMPTY_NODE, ["assess-wire down",cljs.core.cst$kw$t,cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(down_34114),cljs.core.cst$kw$start,lsobot.units.s__GT_dhms(cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(cljs.core.first(frames))),cljs.core.cst$kw$hook_DASH_downrange,hook_downrange_34117__$1,cljs.core.cst$kw$hook_DASH_height,hook_height_34118__$1,cljs.core.cst$kw$hook_DASH_contact,hook_contact_34119__$1,cljs.core.cst$kw$pitch,cljs.core.cst$kw$lsobot$acmi_SLASH_pitch.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$lsobot$grading_SLASH_pilot.cljs$core$IFn$_invoke$arity$1(down_34114)),cljs.core.cst$kw$path_DASH_a,cljs.core.cst$kw$lsobot$grading_SLASH_path_DASH_a.cljs$core$IFn$_invoke$arity$1(down_34114)], null);
 });})(down_34114,vec__34100_34115,__34116__$1,hook_downrange_34117__$1,hook_height_34118__$1,hook_contact_34119__$1,map__34087,map__34087__$1,wire_interval,hook_offset,touchdown_height,aloft,last_aloft,vec__34088,_,hook_downrange,hook_height,hook_contact))
-,null)),null,607394852);
+,null)),null,97512155);
 
 if(((1.5 * wire_interval) < hook_contact)){
 return (1);
@@ -687,7 +687,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.list(cljs.core.cst$kw$lsobot$grading_SLASH_aoa_DASH_assessment,cljs.core.list(cljs.core.cst$kw$lsobot$grading_SLASH_at_DASH_ramp,cljs.core.cst$sym$assessment)),"=>",result__11182__auto__], null);
 });})(result__11182__auto__))
-,null)),null,-2104530635);
+,null)),null,438974853);
 
 return result__11182__auto__;
 })(),null], null);
@@ -708,7 +708,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___34167], null);
 });})(e__11144__auto___34167,temp__6503__auto___34166,vec__34150,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__))
-,null)),null,2006298166);
+,null)),null,-720999959);
 
 throw e__11144__auto___34167;
 } else {
@@ -724,7 +724,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.list(cljs.core.cst$kw$lsobot$grading_SLASH_glideslope_DASH_assessment,cljs.core.list(cljs.core.cst$kw$lsobot$grading_SLASH_at_DASH_ramp,cljs.core.cst$sym$assessment)),"=>",result__11182__auto__], null);
 });})(result__11182__auto__,and__17757__auto____$1,and__17757__auto__))
-,null)),null,557946925);
+,null)),null,-1829042941);
 
 return result__11182__auto__;
 })(),null], null);
@@ -745,7 +745,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [e__11144__auto___34169], null);
 });})(e__11144__auto___34169,temp__6503__auto___34168,vec__34162,_QMARK_result__11142__auto__,_QMARK_error__11143__auto__,and__17757__auto____$1,and__17757__auto__))
-,null)),null,518001656);
+,null)),null,1851463305);
 
 throw e__11144__auto___34169;
 } else {
@@ -853,7 +853,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 9, 5, cljs.core.PersistentVector.EMPTY_NODE, ["scoring",cljs.core.cst$kw$overall,overall,cljs.core.cst$kw$aoa,aoa_score,cljs.core.cst$kw$lineup,lineup_score,cljs.core.cst$kw$glideslope,glideslope_score], null);
 });})(map__34179,map__34179__$1,result,start,mid,in_close,at_ramp,wire,deviation_score,aoa_score,lineup_score,glideslope_score,exactly,overall))
-,null)),null,-367765004);
+,null)),null,2078501252);
 
 if(cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2((5),overall)){
 return cljs.core.cst$kw$lsobot$grading_SLASH_ok_PLUS_;
@@ -904,7 +904,7 @@ return null;
 lsobot.grading.assess_pass = (function lsobot$grading$assess_pass(params,pilot_id,frames){
 taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_config_STAR_,cljs.core.cst$kw$info,"lsobot.grading",null,643,cljs.core.cst$kw$p,cljs.core.cst$kw$auto,(new cljs.core.Delay((function (){
 return new cljs.core.PersistentVector(null, 5, 5, cljs.core.PersistentVector.EMPTY_NODE, ["assessing pass",cljs.core.cst$kw$pilot,cljs.core.cst$kw$lsobot$acmi_SLASH_pilot.cljs$core$IFn$_invoke$arity$1(lsobot.acmi.entity(cljs.core.last(frames),pilot_id)),cljs.core.cst$kw$start,lsobot.units.s__GT_dhms(cljs.core.cst$kw$lsobot$acmi_SLASH_t.cljs$core$IFn$_invoke$arity$1(cljs.core.first(frames)))], null);
-}),null)),null,254513819);
+}),null)),null,-1072983531);
 
 var augmented_frames = lsobot.grading.augment_frames(params,pilot_id,frames);
 var result = lsobot.grading.result(params,augmented_frames);
@@ -922,7 +922,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Asessing start"], null);
 });})(augmented_frames,result,map__34192,map__34192__$1,touchdown_height,zones,touchdown))
-,null)),null,907786648);
+,null)),null,-1262104706);
 
 return lsobot.grading.assess_zone(new cljs.core.PersistentArrayMap(null, 4, [cljs.core.cst$kw$params,params,cljs.core.cst$kw$frames,augmented_frames,cljs.core.cst$kw$from,cljs.core.cst$kw$from.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$start.cljs$core$IFn$_invoke$arity$1(zones)),cljs.core.cst$kw$to,cljs.core.cst$kw$to.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$start.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$zones.cljs$core$IFn$_invoke$arity$1(params)))], null));
 })()
@@ -931,7 +931,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Asssessing mid"], null);
 });})(augmented_frames,result,map__34192,map__34192__$1,touchdown_height,zones,touchdown))
-,null)),null,-387621968);
+,null)),null,-899493767);
 
 return lsobot.grading.assess_zone(new cljs.core.PersistentArrayMap(null, 4, [cljs.core.cst$kw$params,params,cljs.core.cst$kw$frames,augmented_frames,cljs.core.cst$kw$from,cljs.core.cst$kw$from.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$mid.cljs$core$IFn$_invoke$arity$1(zones)),cljs.core.cst$kw$to,cljs.core.cst$kw$to.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$mid.cljs$core$IFn$_invoke$arity$1(zones))], null));
 })()
@@ -940,7 +940,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Assessing in close"], null);
 });})(augmented_frames,result,map__34192,map__34192__$1,touchdown_height,zones,touchdown))
-,null)),null,-1005741020);
+,null)),null,1729933374);
 
 return lsobot.grading.assess_zone(new cljs.core.PersistentArrayMap(null, 4, [cljs.core.cst$kw$params,params,cljs.core.cst$kw$frames,augmented_frames,cljs.core.cst$kw$from,cljs.core.cst$kw$from.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$in_DASH_close.cljs$core$IFn$_invoke$arity$1(zones)),cljs.core.cst$kw$to,cljs.core.cst$kw$to.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$in_DASH_close.cljs$core$IFn$_invoke$arity$1(zones))], null));
 })()
@@ -949,7 +949,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Assessing at ramp"], null);
 });})(augmented_frames,result,map__34192,map__34192__$1,touchdown_height,zones,touchdown))
-,null)),null,-715183366);
+,null)),null,1295510170);
 
 return lsobot.grading.assess_zone(new cljs.core.PersistentArrayMap(null, 4, [cljs.core.cst$kw$params,params,cljs.core.cst$kw$frames,augmented_frames,cljs.core.cst$kw$from,cljs.core.cst$kw$to.cljs$core$IFn$_invoke$arity$1(cljs.core.cst$kw$in_DASH_close.cljs$core$IFn$_invoke$arity$1(zones)),cljs.core.cst$kw$to,(function (){var or__17769__auto__ = touchdown;
 if(cljs.core.truth_(or__17769__auto__)){
@@ -964,7 +964,7 @@ taoensso.timbre._log_BANG_.cljs$core$IFn$_invoke$arity$10(taoensso.timbre._STAR_
 return (function (){
 return new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, ["Assessing wire"], null);
 });})(augmented_frames,result,map__34192,map__34192__$1,touchdown_height,zones,touchdown))
-,null)),null,1607765790);
+,null)),null,236323806);
 
 return lsobot.grading.assess_wire(params,augmented_frames);
 })()
