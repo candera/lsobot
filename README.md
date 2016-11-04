@@ -7,8 +7,8 @@ A carrier landing grading tool for Falcon BMS.
 It's a web app - there's nothing to install. Just visit https://candera.github.io/lsobot.
 
 # How to Use
-TODO: update the below links.
-
 Check out the [official announcement thread](http://www.bmsforum.org/forum/showthread.php?27640-Release-WeatherGen-A-BMS-random-weather-generator),
-or the [tutorial video](https://www.youtube.com/watch?v=6Y3WTBraVxE) I made.
+or the [tutorial video](https://www.youtube.com/watch?v=tSepFhml2DY).
+
+[![Tutorial Video](http://img.youtube.com/vi/tSepFhml2DY/0.jpg)](http://www.youtube.com/watch?v=tSepFhml2DY "LSOBot Tutorial and Intro Video")
 
