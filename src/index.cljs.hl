@@ -1129,6 +1129,11 @@ L30 1100")))
           (td "Concept, testing, project management"))
       (tr (td :class "person" (a :href (urls :drillin) "Drillin"))
           (td "CO, 401st VFS")))
+     (p "LSOBot was inspired by "
+        (a :href "http://vlso.blogspot.com/"
+           :target "_blank"
+           "vLSO")
+        ".")
      (p "Team LSOBot would also like to thank the members of the 1st VFW and especially of the 401st VFS for their help and support during development.")
      (p {:class "version"} (version))))))
 
