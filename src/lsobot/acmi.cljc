@@ -215,9 +215,31 @@
 
 (defmulti parse-field (fn [[k v]] (-> k fields :parse-as)))
 
+;; We need this because (str/split "a|" #"\|") returns ["a"],
+;; not ["a" ""]
+(defn char-split
+  "Split string `s` on character `c`."
+  [s c]
+  (loop [[current & more] s
+         segments []
+         acc ""]
+    (cond
+      (nil? current)
+      (conj segments acc)
+
+      (= current c)
+      (recur more
+             (conj segments acc)
+             "")
+
+      :else
+      (recur more
+             segments
+             (str acc current)))))
+
 (defmethod parse-field :location
   [[_ v]]
-  (let [parts (map parse-float (str/split v #"\|"))]
+  (let [parts (map parse-float (char-split v \|))]
     (if (< (count parts) 6)
       (let [[long lat alt u v] parts]
         (cond-> {}

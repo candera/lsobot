@@ -892,3 +892,51 @@
 
 (-> ps (get "b770a8680000000a") (get "b770a86800000008") second ::grading/grade grading/grades :score)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(->> "/tmp/TAPE0011.txt.acmi"
+     slurp
+     acmi/read-acmi
+     (def a))
+
+(->> a
+     ::acmi/frames
+     count)
+
+(def carriers
+  (->> a
+       grading/carriers))
+
+(def pilots
+  (->> a
+       grading/pilots))
+
+(def enterprise
+  (first carriers))
+
+(def shady
+  (second pilots))
+
+(map #(-> a ::acmi/frames last (acmi/entity %)) carriers)
+
+(->> a
+     ::acmi/frames
+     last
+     acmi/entities
+     (map (fn [[id props]] (::acmi/object-type props))))
+
+(let [a          (->> "/tmp/TAPE0011.txt.acmi"
+                      slurp
+                      acmi/read-acmi)
+      carriers   (->> a
+                      grading/carriers)
+      pilots     (->> a
+                      grading/pilots)
+      enterprise (first carriers)
+      shady      (second pilots)]
+  (-> a
+       ::acmi/frames
+       last
+       (acmi/entity enterprise)
+       )
+  #_(grading/find-passes a enterprise shady grading/default-parameters))
