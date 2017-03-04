@@ -150,13 +150,22 @@
                                         ; aircraft has to be before it
                                         ; is considered to be on the deck
 
+   ;; I denormalized this a bit with the deltas to maintain backward
+   ;; compatibility when we were trying out adjustable glideslopes.
+   ;; Should probably update the code so that it uses only the deltas.
    :glideslope          {:ideal 3.3
                          :good  {:low  3.1
-                                 :high 3.5}
+                                 :low-delta -0.2
+                                 :high 3.5
+                                 :high-delta 0.2}
                          :minor {:low  2.7
-                                 :high 3.9}
+                                 :low-delta -0.6
+                                 :high 3.9
+                                 :high-delta 0.6}
                          :major {:low  2.3
-                                 :high 4.3}}
+                                 :low-delta -1.0
+                                 :high 4.3
+                                 :high-delta 1.0}}
    :aoa                 {:ideal 8.1
                          :good  {:low  7.4
                                  :high 8.8}

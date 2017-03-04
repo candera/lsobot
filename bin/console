@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Sets up a tmux window
+
+background 001133
+
+tmux new-session -s lsobot -n repl -d 'bash -i'
+tmux new-window  -t lsobot:1 -n tags    'bash -i -c "watch-clojure-tags src dev"'
+
+tmux select-window -t lsobot
+tmux -2 attach-session -t lsobot

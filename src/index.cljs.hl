@@ -75,7 +75,7 @@
 
 (defformula unsorted-passes
   [acmi pass-parameters]
-  (get-passes acmi pass-parameters))
+    (get-passes acmi pass-parameters))
 
 (defformula passes
   [unsorted-passes sort-criteria]
@@ -93,6 +93,9 @@
                               (pos? comparison) false
                               :else (recur more)))))))
         unsorted-passes))
+
+(formula-of [passes]
+  (.log js/console "passes changed"))
 
 (defn next-pass
   "Moves to the next pass in the list, if there is one."
@@ -386,6 +389,7 @@ L30 1100")))
 
 (defn elevation-path
   [params pass]
+  (.log js/console "re-rendering elevation-path")
   (svg/g
    :attr {:class "approach-path"}
    (for [frame (-> pass :assessment ::grading/frames)]
@@ -522,7 +526,8 @@ L30 1100")))
 (def elevation
   "Draws the side view of the pass."
   (formula-of
-   [pass-parameters selected-pass]
+    [pass-parameters selected-pass]
+    (.log js/console "recomputing elevation")
    (let [{:keys [west east high low]} view-bounds
          [x y z] (:landing-point (log/spy pass-parameters))]
      (div
@@ -577,7 +582,10 @@ L30 1100")))
                             :attr {:class (str "axis-label elevation glideslope " class)}
                             :x (- east 500)
                             :y -20
-                            (str angle "°"))])]
+                            ;; For some reason I don't understand
+                            ;; .toFixed doesn't work here unless we do
+                            ;; math on it first.
+                            (-> angle (* 1.0) (.toFixed 1) (str "°")))])]
           (svg/g
            (guideline (:ideal params) "ideal" 0)
            (for [[k1 m] (select-keys params [:good :minor :major])
@@ -1159,25 +1167,91 @@ L30 1100")))
   ;;:keypress keypress
   titlebar
   (formula-of
-   [loading? acmi acmi-name passes]
-   (if loading?
-     (div
-      :id "loading-placeholder"
-      (span
-       :id "loading-placeholder-message"
-       "Loading...")
-      (img :id "spinner" :src "images/spinner.gif"))
-     (div
-      :id "loaded-file-controls"
-      (button :id "load-button" :click load-acmi "Load ACMI")
-      (if-not acmi
-        (div :id "load-status" "No ACMI file loaded")
-        (div :id "load-status" "Loaded ACMI: " acmi-name))
-      (when-not (-> passes count zero?)
-        (button :id "export-button"
-                :click export-csv
-                "Export as CSV")))))
+    [loading? acmi acmi-name passes]
+    (if loading?
+      (div
+       :id "loading-placeholder"
+       (span
+        :id "loading-placeholder-message"
+        "Loading...")
+       (img :id "spinner" :src "images/spinner.gif"))
+      (div
+       :id "loaded-file-controls"
+       (button :id "load-button" :click load-acmi "Load ACMI")
+       (if-not acmi
+         (div :id "load-status" "No ACMI file loaded")
+         (div :id "load-status" "Loaded ACMI: " acmi-name))
+       (when-not (-> passes count zero?)
+         (button :id "export-button"
+                 :click export-csv
+                 "Export as CSV")))))
   (assessment passes selected-pass limit-displayed-passes? sort-criteria)
+  (div
+   (span "Ideal glideslope: ")
+   (select
+    :change #(do
+               (.log js/console "updating pass parameters")
+               (swap! pass-parameters
+                      update
+                      :glideslope
+                      (fn [gs]
+                        (let [ideal (-> @% js/Number. .valueOf)
+                              {:keys [good minor major]} gs
+                              adjust (fn [{:keys [low-delta high-delta] :as v}]
+                                       (-> v
+                                           (assoc :low (+ low-delta ideal))
+                                           (assoc :high (+ high-delta ideal))))]
+                          (.log js/console gs)
+                          (let [ret (-> gs
+                                        (assoc :ideal ideal)
+                                        (update :good adjust)
+                                        (update :minor adjust)
+                                        (update :major adjust))]
+                            (.log js/console ret)
+                            ret)))))
+    (for [gs (range 2.9 4.3 0.1)]
+      (option :value gs
+              :selected (-> pass-parameters
+                            :glideslope
+                            :ideal
+                            (* 10)
+                            long
+                            (= (long (* gs 10)))
+                            cell=)
+              (.toFixed gs 1)))))
+  (div
+   (span "AoA width: ")
+   (select
+    :change #(do
+               (.log js/console "updating AoA width")
+               (swap! pass-parameters
+                      update
+                      :aoa
+                      (fn [aoa]
+                        (let [factor (-> @% js/Number. .valueOf)
+                              {:keys [ideal]} aoa
+                              val (fn [zone direction]
+                                    (-> grading/default-parameters
+                                        :aoa
+                                        zone
+                                        direction
+                                        (- ideal)
+                                        (* factor)
+                                        (+ ideal)))]
+                          (.log js/console aoa)
+                          (let [ret (-> aoa
+                                        (assoc-in [:good :low] (val :good :low))
+                                        (assoc-in [:good :high] (val :good :high))
+                                        (assoc-in [:minor :low] (val :minor :low))
+                                        (assoc-in [:minor :high] (val :minor :high))
+                                        (assoc-in [:major :low] (val :major :low))
+                                        (assoc-in [:major :high] (val :major :high)))]
+                            (.log js/console ret)
+                            ret)))))
+    (for [aoa (range 0.5 2.0 0.05)]
+      (option :value aoa
+              :selected (= (-> aoa (* 20) long (/ 20.0)) 1.0)
+              (.toFixed aoa 2)))))
   (div
    :id "graphs"
    (div
@@ -1202,42 +1276,42 @@ L30 1100")))
               "Show debug controls")))
   #_(let [pass-parameters-cell pass-parameters]
       (formula-of
-       [pass-parameters]
-       (let [temp-parameters (cell pass-parameters)]
-         (fieldset
-          :toggle show-debug?
-          :id "debug-weights"
-          (legend "Assessment Weights")
-          (table
-           (thead
-            (tr
-             (th "Param")
-             (th "Default")
-             (th "Current")
-             (th "Change to")))
-           (tbody
-            (for [[k label] [[:start "Zone Start"]
-                             [:end "Zone End"]
-                             [:ideal "Ideal"]
-                             [:good "Good"]
-                             [:minor "Minor Deviation"]
-                             [:major "Major Deviation"]
-                             [:unacceptable "Unacceptable Deviation"]]
-                  :let [path [:weights k]
-                        id (str (gensym))]]
-              (tr
-               (td label)
-               (td (str (get-in grading/default-parameters path)))
-               (td (cell= (get-in pass-parameters-cell path)))
-               (td (input :id id
-                          :type "text"
-                          :value (cell= (get-in temp-parameters path))
-                          :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
-          (button
-           ;; This dosync is a filthy hack, but I had to do it to make things
-           ;; work right.
-           :click #(dosync (reset! pass-parameters-cell @temp-parameters))
-           "Apply")))))
+        [pass-parameters]
+        (let [temp-parameters (cell pass-parameters)]
+          (fieldset
+           :toggle show-debug?
+           :id "debug-weights"
+           (legend "Assessment Weights")
+           (table
+            (thead
+             (tr
+              (th "Param")
+              (th "Default")
+              (th "Current")
+              (th "Change to")))
+            (tbody
+             (for [[k label] [[:start "Zone Start"]
+                              [:end "Zone End"]
+                              [:ideal "Ideal"]
+                              [:good "Good"]
+                              [:minor "Minor Deviation"]
+                              [:major "Major Deviation"]
+                              [:unacceptable "Unacceptable Deviation"]]
+                   :let [path [:weights k]
+                         id (str (gensym))]]
+               (tr
+                (td label)
+                (td (str (get-in grading/default-parameters path)))
+                (td (cell= (get-in pass-parameters-cell path)))
+                (td (input :id id
+                           :type "text"
+                           :value (cell= (get-in temp-parameters path))
+                           :change #(swap! temp-parameters assoc-in path (js/Number @%))))))))
+           (button
+            ;; This dosync is a filthy hack, but I had to do it to make things
+            ;; work right.
+            :click #(dosync (reset! pass-parameters-cell @temp-parameters))
+            "Apply")))))
   credits
   (script :src "//cdn.rawgit.com/noelboss/featherlight/1.5.0/release/featherlight.min.js"
           :type "text/javascript"
