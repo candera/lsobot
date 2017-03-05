@@ -1,7 +1,23 @@
 #!/bin/bash
 
+# TODO: This is in common with the one in weathergen. Move them into
+# some sort of shared repository.
+
 cd $(dirname $0)/..
 
-bin/build --allow-dirty
-aws s3 sync target/ s3://lsobot
-open http://lsobot.s3-website-us-east-1.amazonaws.com
+GIT_VERSION=$(git describe --tags)
+
+set -e
+
+if [[ (-n "$(git status --porcelain)") ]]; then
+    GIT_VERSION="${GIT_VERSION}-dirty"
+fi
+
+echo "Building version ${GIT_VERSION}"
+
+bin/build $*
+aws s3 sync target/ s3://lsobot/${GIT_VERSION}
+# TODO: Add redirect from root to versioned resource
+open http://lsobot.s3-website-us-east-1.amazonaws.com/${GIT_VERSION}
+
+
