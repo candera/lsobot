@@ -1,8 +1,8 @@
 (ns lsobot.acmi
   "Functions for reading ACMI files"
   (:require [clojure.string :as str]
-            #?@(:clj [[clojure.spec :as s]
-                      [clojure.spec.gen :as sgen]]))
+            #?@(:clj [[clojure.spec.alpha :as s]
+                      [clojure.spec.gen.alpha :as sgen]]))
   #?(:cljs (:require-macros [lsobot.spec :as s]
                             [lsobot.spec-gen :as sgen])))
 
